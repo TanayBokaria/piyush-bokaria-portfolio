@@ -290,6 +290,11 @@
       <span id="sheetsStatusLabel">Sheets: Not connected</span>
     </div>
     <div class="last-updated">Updated: <span id="lastUpdatedTime">—</span></div>
+    <button class="refresh-btn" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent)" onclick="document.getElementById('soaFileInput').click()" title="Upload a statement PDF to auto-update values">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Statement
+    </button>
+    <input type="file" id="soaFileInput" accept=".pdf" multiple style="display:none" onchange="handleSOAUpload(event)">
     <button class="refresh-btn" id="refreshBtn" onclick="refreshNAVs()">
       <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
       Refresh NAVs
@@ -547,6 +552,26 @@
   </div>
 </div>
 
+<!-- SOA UPLOAD REVIEW MODAL -->
+<div class="modal-overlay" id="soaReviewModal" style="display:none;align-items:flex-start;padding-top:40px;overflow-y:auto">
+  <div class="modal" style="width:660px;max-width:95vw;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">Statement Review</h2>
+      <button onclick="closeSOAModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <p id="soaModalDesc" style="font-size:12px;color:var(--text-muted);margin-bottom:18px">Reviewing extracted data — please verify before applying.</p>
+    <div id="soaParsingStatus" style="display:none;padding:16px;text-align:center;color:var(--text-muted);font-size:12px;font-family:'DM Mono',monospace">
+      <div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>
+      Extracting data from PDF...
+    </div>
+    <div id="soaCards"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:14px;border-top:1px solid var(--border)">
+      <div id="soaSummary" style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace"></div>
+      <button class="btn-secondary" onclick="closeSOAModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════
 // DATA
@@ -798,7 +823,14 @@ async function refreshNAVs(){
 
   lastRefreshed=new Date();st.textContent='Done!';
 
-  // 4. Write full portfolio snapshot to Sheets
+  // 4. Run scheme code hygiene check
+  document.getElementById('loadingText').textContent='Scheme code hygiene check';
+  st.textContent='Verifying scheme codes against AMFI...';
+  const logContainer = document.getElementById('updateLog');
+  logContainer.innerHTML = ''; // clear previous log
+  await runHygieneCheck();
+
+  // 5. Write full portfolio snapshot to Sheets
   if(sheetsConnected){
     st.textContent='Saving snapshot to Google Sheets...';
     await writePortfolioSnapshot();
@@ -1505,33 +1537,7 @@ async function addNewFund(){
   setTimeout(()=>resetAndCloseAddFund(), 2000);
 }
 
-async function saveNewHoldingToSheets(h, notes=''){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId)return false;
-  try{
-    // Columns: id|investor|fund|house|folio|type|category|invested|units|navCost|currentValue|purchaseDate|asOfDate|addedOn|schemeCode|originalName|currentName|notes
-    const vals=[[
-      h.id, h.investor, h.originalName||h.fund||"", h.house||'', h.folio||'',
-      h.type, h.category, h.invested||0, h.units||'',
-      h.navCost||'', h.currentValue||0, h.purchaseDate||'',
-      h.soaDate||'', fmtDate(new Date()), h.schemeCode||'',
-      h.originalName||h.fund||"", h.currentName||"", notes
-    ]];
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/new_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
-    if(!r.ok){
-      const err=await r.json().catch(()=>({}));
-      console.error('Sheets save error:', JSON.stringify(err));
-      alert('Google Sheets save failed: '+(err?.error?.message||r.status)+'\nPlease check your Sheets connection and try again.');
-      return false;
-    }
-    return true;
-  }catch(e){
-    console.error('saveNewHoldingToSheets exception:',e);
-    alert('Google Sheets save error: '+e.message);
-    return false;
-  }
-}
-
+async 
 // ═══════════════════════════════════
 // RENDER
 // ═══════════════════════════════════
@@ -1738,6 +1744,879 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateSheetsPill('', 'Sheets: Click to connect');
   }
 });
+
+
+
+
+
+
+
+
+async function saveNewHoldingToSheets(h, notes=''){
+  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId)return false;
+  try{
+    // Columns: id|investor|fund|house|folio|type|category|invested|units|navCost|currentValue|purchaseDate|asOfDate|addedOn|schemeCode|originalName|currentName|notes
+    const vals=[[
+      h.id, h.investor, h.fund, h.house||'', h.folio||'',
+      h.type, h.category, h.invested||0, h.units||'',
+      h.navCost||'', h.currentValue||0, h.purchaseDate||'',
+      h.soaDate||'', fmtDate(new Date()), h.schemeCode||'',
+      h.originalName||h.fund, h.currentName||h.fund, notes
+    ]];
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/new_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({}));
+      console.error('Sheets save error:', JSON.stringify(err));
+      alert('Google Sheets save failed: '+(err?.error?.message||r.status)+'\nPlease check your Sheets connection and try again.');
+      return false;
+    }
+    return true;
+  }catch(e){
+    console.error('saveNewHoldingToSheets exception:',e);
+    alert('Google Sheets save error: '+e.message);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════
+// RENDER
+// ═══════════════════════════════════
+function renderAll(){
+  renderSummary();renderMemberCards();renderCharts();renderTable();renderNYSE();
+  renderManualUpdates();renderNavFeed();
+  document.getElementById('headerDate').textContent=fmtDate(lastRefreshed).toUpperCase();
+  document.getElementById('lastUpdatedTime').textContent=lastRefreshed.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function renderSummary(){
+  const t=portfolioTotals();
+  document.getElementById('totalInvested').textContent=fmtCr(t.invested);
+  document.getElementById('totalCurrent').textContent=fmtCr(t.current);
+  document.getElementById('totalGainAmt').textContent=gainPrefix(t.gain)+fmtCr(t.gain)+' total gain';
+  document.getElementById('totalGainAmt').className='stat-sub '+(t.gain>=0?'gain':'loss');
+  document.getElementById('totalReturn').textContent=gainPrefix(t.gainPct)+t.gainPct.toFixed(1)+'%';
+  document.getElementById('totalReturn').className='stat-value '+gainClass(t.gain);
+  document.getElementById('navCoverage').textContent=portfolioData.filter(h=>h.schemeCode).length+' live NAVs';
+  // Update holding count in subtitle and summary card dynamically
+  const total=portfolioData.length;
+  document.querySelector('.header-left .subtitle').innerHTML=`${total} HOLDINGS &nbsp;·&nbsp; 5 INVESTORS &nbsp;·&nbsp; AS AT <span id="headerDate">${fmtDate(lastRefreshed).toUpperCase()}</span>`;
+  document.querySelector('#totalInvested').closest('.stat-card').querySelector('.stat-sub').textContent=`Across ${total} holdings`;
+}
+function renderMemberCards(){
+  const totals=memberTotals(),container=document.getElementById('memberCards');container.innerHTML='';
+  for(const [name,meta] of Object.entries(MEMBER_META)){
+    const t=totals[name];if(!t||t.count===0)continue;
+    const card=document.createElement('div');card.className='member-card'+(activeFilter===name?' active':'');
+    card.onclick=()=>filterTable(name,null);
+    card.innerHTML=`<div class="member-header"><div class="member-avatar" style="background:${meta.color}">${meta.short}</div><div><div class="member-name">${shortName(name)}</div><div class="member-tag">${meta.label} · ${t.count} holdings</div></div></div>
+    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Current Value</div>
+    <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:${meta.color}">${fmtCr(t.current)}</div>
+    <div style="font-size:11px;margin-top:1px" class="${gainClass(t.gain)}">${gainPrefix(t.gain)}${fmtL(t.gain)} (${gainPrefix(t.gainPct)}${t.gainPct.toFixed(1)}%)</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:5px">Invested: ${fmtCr(t.invested)}</div>`;
+    container.appendChild(card);
+  }
+}
+function renderCharts(){
+  const totals=memberTotals();
+  const mems=Object.entries(MEMBER_META).filter(([n])=>{const t=totals[n];return t&&t.count>0;});
+  const mL=mems.map(([n])=>shortName(n)),mV=mems.map(([n])=>totals[n].current),mC=mems.map(([,m])=>m.color);
+  if(memberChartInst)memberChartInst.destroy();
+  memberChartInst=new Chart(document.getElementById('memberChart'),{type:'doughnut',data:{labels:mL,datasets:[{data:mV,backgroundColor:mC,borderColor:'#0d0f14',borderWidth:3,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#7a7e8e',font:{family:'DM Sans',size:11},padding:12,boxWidth:10}},tooltip:{callbacks:{label:ctx=>' '+fmtCr(ctx.raw)+' ('+((ctx.raw/mV.reduce((a,b)=>a+b,0))*100).toFixed(1)+'%)'}}}}});
+  const cats=categoryTotals(),catC={
+    'Equity':     '#2ecc71',   // bright green
+    'Debt':       '#f39c12',   // amber
+    'PMS':        '#e74c3c',   // red
+    'AIF':        '#9b59b6',   // purple
+    'Debt-Others':'#1abc9c',   // turquoise
+    'EQ-Debt Tax':'#e67e22',   // orange
+    'NYSE':       '#3498db',   // bright blue
+    'Hybrid':     '#fd79a8',   // pink
+  };
+  if(categoryChartInst)categoryChartInst.destroy();
+  categoryChartInst=new Chart(document.getElementById('categoryChart'),{type:'doughnut',data:{labels:Object.keys(cats),datasets:[{data:Object.values(cats),backgroundColor:Object.keys(cats).map(c=>catC[c]||'#4a4f62'),borderColor:'#0d0f14',borderWidth:3,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#7a7e8e',font:{family:'DM Sans',size:11},padding:12,boxWidth:10}},tooltip:{callbacks:{label:ctx=>' '+fmtCr(ctx.raw)+' ('+((ctx.raw/Object.values(cats).reduce((a,b)=>a+b,0))*100).toFixed(1)+'%)'}}}}});
+}
+function calcCAGR(invested, currentValue, days){
+  if(!invested||invested<=0||!days||days<1) return null;
+  return (Math.pow(currentValue/invested, 365/days) - 1) * 100;
+}
+
+function renderTable(){
+  const data=activeFilter==='all'?portfolioData:portfolioData.filter(h=>h.investor===activeFilter);
+  document.getElementById('tableCount').textContent=data.length+' FUNDS';
+  const tbody=document.getElementById('holdingsBody');tbody.innerHTML='';
+  data.forEach(h=>{
+    const gain=(h.currentValue||0)-h.invested;
+    const gainPct=h.invested>0?(gain/h.invested)*100:0;
+    const meta=MEMBER_META[h.investor],days=holdingDays(h.purchaseDate),isAuto=h.type==='MF'&&h.schemeCode;
+    const cagr=calcCAGR(h.invested, h.currentValue||0, days);
+    const cagrStr=cagr!==null
+      ? `<span class="${gainClass(cagr)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
+      : '<span style="color:var(--text-dim)">—</span>';
+
+    // NAV cell — show currentNav for MFs, "—" for PMS/AIF
+    const navStr = h.currentNav
+      ? `<span style="font-family:'DM Mono',monospace;font-size:12px">₹${h.currentNav.toFixed(4)}</span>
+         ${h.navDate?`<div style="font-size:10px;color:var(--text-dim)">${h.navDate}</div>`:''}`
+      : '<span style="color:var(--text-dim)">—</span>';
+
+    const hasNameChange = h.currentName && h.currentName !== h.originalName;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>
+        <div class="fund-name">${h.originalName||h.fund}</div>
+        <span class="fund-house">${h.house}</span>
+      </td>
+      <td>
+        ${hasNameChange
+          ? `<div class="fund-name" style="color:var(--accent2)">${h.currentName}</div><span style="font-size:9px;color:var(--accent);font-family:'DM Mono',monospace;background:rgba(200,169,110,0.12);padding:1px 5px;border-radius:3px;border:1px solid rgba(200,169,110,0.3)">RENAMED</span>`
+          : `<div style="font-size:12px;color:var(--text-dim)">—</div>`
+        }
+      </td>
+      <td><span class="member-dot" style="background:${meta?meta.color:'#666'}"></span><span style="font-size:12px">${shortName(h.investor)}</span></td>
+      <td><span class="tag ${getTagClass(h)}">${getTypeLabel(h)}</span></td>
+      <td style="text-align:right"><span class="amount">${fmtExact(h.invested)}</span></td>
+      <td style="text-align:right"><span class="amount">${fmtExact(h.currentValue||0)}</span>${h.soaDate?`<div style="font-size:10px;color:var(--text-dim)">${h.soaDate}</div>`:''}</td>
+      <td style="text-align:right">${navStr}</td>
+      <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
+      <td style="text-align:right"><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
+      <td style="text-align:right">${cagrStr}</td>
+      <td style="text-align:center">${isAuto?'<span class="status-dot live-dot"></span><span style="font-size:11px;color:var(--green)">Live</span>':'<span class="status-dot manual-dot"></span><span style="font-size:11px;color:var(--accent)">SOA</span>'}</td>
+      <td style="text-align:center"><button class="delete-btn" onclick="confirmDelete(${h.id})" title="Remove fund">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+// ═══════════════════════════════════
+// DELETE FUND
+// ═══════════════════════════════════
+async function confirmDelete(id){
+  const h = portfolioData.find(x=>x.id===id);
+  if(!h) return;
+  const confirmed = window.confirm(`Remove "${h.fund}" (${shortName(h.investor)}) from the dashboard?\n\nThis will remove it from the current view. A record will be saved to Google Sheets for audit purposes.`);
+  if(!confirmed) return;
+
+  // Remove from in-memory data
+  portfolioData = portfolioData.filter(x=>x.id!==id);
+  lastRefreshed = new Date();
+
+  // Log deletion to Sheets
+  if(sheetsConnected) await logDeletionToSheets(h);
+
+  renderAll();
+}
+
+async function logDeletionToSheets(h){
+  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId) return false;
+  try{
+    const vals=[[
+      h.id, h.fund, h.investor, h.type,
+      fmtL(h.invested), fmtL(h.currentValue||0),
+      fmtDate(new Date()), 'deleted'
+    ]];
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/deleted_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
+    return r.ok;
+  }catch(e){console.error(e);return false;}
+}
+
+function renderNavFeed(){
+  const c=document.getElementById('navFeedList');c.innerHTML='';const seen=new Set();
+  portfolioData.filter(h=>h.type==='MF'&&h.currentNav).forEach(h=>{
+    const key=h.schemeCode||h.fund;if(seen.has(key))return;seen.add(key);
+    const cached=h.schemeCode&&navCache[h.schemeCode];
+    const row=document.createElement('div');row.className='nav-status-row';
+    row.innerHTML=`<div class="nav-name"><div class="nav-name-text">${h.fund}</div><div class="nav-date">${cached?cached.date:'05-Feb-2026'}</div></div><div class="nav-value">₹${h.currentNav?h.currentNav.toFixed(4):'—'}</div><div><span class="status-dot live-dot"></span><span style="font-size:10px;color:var(--green)">LIVE</span></div>`;
+    c.appendChild(row);
+  });
+}
+function filterTable(member,btnEl){
+  activeFilter=member;
+  document.querySelectorAll('.filter-tab').forEach(b=>b.classList.remove('active'));
+  if(btnEl)btnEl.classList.add('active');
+  else document.querySelectorAll('.filter-tab').forEach(b=>{if(b.textContent.includes(shortName(member)))b.classList.add('active');});
+  renderTable();renderMemberCards();
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  renderAll();
+  fetchUSDINR(); // pre-load FX rate on startup
+
+  // Always pre-fill modal with credentials — from localStorage if saved, otherwise defaults
+  const saved = loadSheetsConfig();
+  const sheetId  = (saved && sheetsConfig?.sheetId)  || DEFAULT_SHEET_ID;
+  const clientId = (saved && sheetsConfig?.clientId) || DEFAULT_CLIENT_ID;
+  document.getElementById('sheetIdInput').value  = sheetId;
+  document.getElementById('clientIdInput').value = clientId;
+
+  // Load Google Identity Services and attempt silent sign-in
+  updateSheetsPill('', 'Sheets: Connecting...');
+  try {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+
+    // Request token silently — prompt:'none' avoids showing the popup if already signed in
+    google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      prompt: '',   // empty string = use existing session if available, else show popup
+      callback: async (tok) => {
+        if (tok.error) {
+          // Silent sign-in failed — show the manual connect pill
+          updateSheetsPill('', 'Sheets: Click to connect');
+          return;
+        }
+        saveSheetsConfig({ sheetId, clientId, accessToken: tok.access_token });
+        sheetsConnected = true;
+        updateSheetsPill('connected', 'Sheets: Connected');
+        await loadFromSheets();
+        renderAll();
+      }
+    }).requestAccessToken({ prompt: '' });
+
+  } catch(e) {
+    updateSheetsPill('', 'Sheets: Click to connect');
+  }
+});
+// ═══════════════════════════════════
+// SCHEME CODE HYGIENE CHECK
+// ═══════════════════════════════════
+async function runHygieneCheck(){
+  const container = document.getElementById('updateLog');
+  const codes = [...new Set(portfolioData.filter(h=>h.schemeCode).map(h=>({code:h.schemeCode,name:h.originalName||h.fund||''}) ))];
+  let issues = 0, renamed = 0;
+
+  for(const {code, name} of codes){
+    try{
+      const r = await fetch(`https://api.mfapi.in/mf/${code}/latest`);
+      if(!r.ok){ addHygieneLog(container,'error',`⚠ Scheme ${code} (${name.slice(0,35)}) — not found on AMFI. Verify scheme code.`); issues++; continue; }
+      const d = await r.json();
+      const amfiName = d?.meta?.scheme_name||'';
+      const latestNav = d?.data?.[0];
+      const navDate = latestNav?.date||'';
+
+      // Stale NAV check — more than 10 calendar days old
+      if(navDate){
+        const [dd,mm,yyyy] = navDate.split('-');
+        const navDt = new Date(`${yyyy}-${mm}-${dd}`);
+        const ageDays = Math.floor((new Date()-navDt)/86400000);
+        if(ageDays > 10){
+          addHygieneLog(container,'warn',`⚠ ${name.slice(0,40)} — NAV is ${ageDays} days old (${navDate}). Fund may be merged or closed.`);
+          issues++;
+        }
+      }
+
+      // Name change check — update currentName automatically
+      if(amfiName && amfiName !== name){
+        const holdings = portfolioData.filter(h=>h.schemeCode===code);
+        holdings.forEach(h=>{
+          if(h.currentName !== amfiName){
+            h.currentName = amfiName;
+            renamed++;
+          }
+        });
+        addHygieneLog(container,'warn',`↪ ${name.slice(0,35)} renamed → ${amfiName.slice(0,40)}`);
+      } else {
+        addHygieneLog(container,'ok',`✓ ${name.slice(0,50)} — scheme code verified`);
+      }
+
+      await new Promise(x=>setTimeout(x,80));
+    }catch(e){
+      addHygieneLog(container,'error',`✗ ${name.slice(0,40)} — hygiene check failed: ${e.message}`);
+      issues++;
+    }
+  }
+
+  // Summary
+  if(issues===0 && renamed===0){
+    addHygieneLog(container,'ok',`✓ All ${codes.length} scheme codes verified clean.`);
+  } else {
+    if(renamed>0) addHygieneLog(container,'warn',`↪ ${renamed} fund name(s) auto-updated from AMFI.`);
+    if(issues>0)  addHygieneLog(container,'error',`⚠ ${issues} issue(s) found — review entries above.`);
+  }
+
+  if(renamed>0) renderHoldings(); // Re-render to show updated RENAMED badges
+}
+
+function addHygieneLog(container, type, msg){
+  const d = document.createElement('div');
+  d.className = `log-hygiene ${type}`;
+  d.textContent = msg;
+  container.appendChild(d);
+}
+
+// ═══════════════════════════════════
+// SOA PDF UPLOAD & PARSING
+// ═══════════════════════════════════
+const MEMBERS = ['Piyush Bokaria','Babita Bokaria','Rohan Bokaria','Kavya Bokaria','Piyush Bokaria HUF'];
+const CATEGORIES = ['Equity','Debt','PMS','AIF','EQ-Debt Tax','Debt-Others','Hybrid'];
+
+async function handleSOAUpload(event){
+  const files = Array.from(event.target.files);
+  if(!files.length) return;
+  event.target.value = ''; // reset so same file can be re-uploaded
+
+  const modal = document.getElementById('soaReviewModal');
+  const cards = document.getElementById('soaCards');
+  const status = document.getElementById('soaParsingStatus');
+  const desc = document.getElementById('soaModalDesc');
+  const summary = document.getElementById('soaSummary');
+
+  modal.style.display = 'flex';
+  cards.innerHTML = '';
+  status.style.display = 'block';
+  summary.textContent = '';
+  desc.textContent = `Parsing ${files.length} PDF${files.length>1?'s':''}...`;
+
+  // Load PDF.js from CDN
+  if(!window.pdfjsLib){
+    await new Promise((res,rej)=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        res();
+      };
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const results = [];
+  for(const file of files){
+    status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Extracting text from ${file.name}...`;
+    try{
+      const text = await extractPDFText(file);
+      const extracted = parseStatementText(text, file.name);
+      results.push(...extracted);
+    }catch(e){
+      results.push({error: true, fileName: file.name, message: e.message});
+    }
+  }
+
+  status.style.display = 'none';
+  desc.textContent = `Review extracted data below. Edit any field before applying.`;
+
+  if(!results.length){
+    cards.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">No recognisable investment data found in the uploaded file(s).</div>';
+    return;
+  }
+
+  results.forEach((r,i) => renderSOACard(r, i, cards));
+  summary.textContent = `${results.length} holding(s) extracted from ${files.length} file(s)`;
+}
+
+async function extractPDFText(file){
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+  let text = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item=>item.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+function parseStatementText(text, fileName){
+  const results = [];
+  const t = text;
+
+  // ── CAMS / InCred AIF (Account Statement format) ──
+  // Pattern: "Scheme Name NAV Unit Balance Value"
+  const camsSchemeMatch = t.match(/([A-Za-z][A-Za-z\s\-&]+Fund[^\n]{0,60})\s+([\d,]+\.[\d]+)\s+[\d,]+\.[\d]+\s+([\d,]+\.[\d]+)/);
+
+  // ── InCred Wealth PMS ──
+  const incredPMSMatch = t.match(/InCred\s+Capital\s+([A-Za-z\s]+Portfolio[^\n]{0,40})\s+[\d\/]+\/[\d]+\s+[\d,]+\.[\d]+\s+([\d,]+)\s+([\d,]+)/);
+
+  // ── Girik PMS ──
+  const girikMatch = t.match(/Portfolio\s+Value\s*\((\d{2}\/\d{2}\/\d{4})\)\s+([\d,]+)/);
+  const girikAccount = t.match(/Account:\s*[\d]+\s*[-–]\s*([A-Z\s]+(?:LIQUID|EQUITY|GROWTH)[^\n]{0,30})/i);
+  const girikInvestor = t.match(/([A-Z][A-Z\s]+BOKARIA(?:\s+HUF)?)\s+(?:JT\s+)?(?:LIQUID|EQUITY)/i);
+
+  // ── PixelSky / Generic AIF ──
+  const pixelskyMatch = t.match(/PixelSky\s+Capital\s+Fund\s+[I1]+/i);
+  const aifInvestor = t.match(/Investor\s+Name\s*:?\s*([A-Za-z\s]+Bokaria[^\n]{0,20})/i);
+  const aifFolio = t.match(/Folio\s+No\s*:?\s*([A-Z0-9_]+)/i);
+  const aifContrib = t.match(/Total\s+Capital\s+Contributed\s*₹?\s*([\d,]+)/i);
+  const aifUnits = t.match(/Total\s+Units\s+Allotted\s*([\d,]+)/i);
+  const aifCommitment = t.match(/Total\s+Capital\s+Commitment\s*₹?\s*([\d,]+)/i);
+  const aifDrawdown = t.match(/Amount\s*\(INR\)\s*₹?\s*([\d,]+)/i);
+
+  // ── Generic investor name ──
+  const genericInvestor = t.match(/(?:Client|Investor|Name)[^:]*:\s*([A-Z][a-z]+\s+Bokaria(?:\s+HUF)?)/i) ||
+    t.match(/((?:Prashant|Shalini|Tanay|Tanvi)\s+Bokaria(?:\s+HUF)?)/i);
+
+  // ── Date extraction ──
+  const dateMatch = t.match(/(?:as\s+on|as\s+at|statement\s+date)[^:]*:?\s*(\d{1,2}[-\/]\w{2,3}[-\/]\d{2,4}|\d{2}\/\d{2}\/\d{4})/i) ||
+    t.match(/(\d{2}[-\/]\d{2}[-\/]\d{4})/);
+
+  const soaDate = dateMatch ? normaliseDate(dateMatch[1]) : '';
+
+  // ── CAMS-style AIF (InCred Equity Advantage) ──
+  if(camsSchemeMatch && !pixelskyMatch){
+    const fundName = camsSchemeMatch[1].trim();
+    const nav = parseFloat(camsSchemeMatch[2].replace(/,/g,''));
+    const value = parseFloat(camsSchemeMatch[3].replace(/,/g,''));
+    const investorRaw = genericInvestor?.[1]||'';
+    const investor = matchInvestorName(investorRaw);
+    const folio = t.match(/Account\s+No\.?\s*[:\.]?\s*(\d{4,})/i)?.[1] || '';
+    const invested = extractInvestedAmount(t);
+
+    results.push({
+      state: matchHolding(folio, fundName) ? 'update' : 'new',
+      fundName, investor, folio, soaDate,
+      currentValue: value, invested, nav,
+      type: 'AIF', category: 'AIF',
+      schemeCode: '', fundHouse: extractFundHouse(fundName),
+      matchedId: matchHolding(folio, fundName),
+      source: 'CAMS AIF Statement'
+    });
+  }
+
+  // ── InCred Wealth PMS ──
+  if(incredPMSMatch){
+    const fundName = 'InCred Capital ' + incredPMSMatch[1].trim();
+    const value = parseFloat(incredPMSMatch[3].replace(/,/g,''));
+    const invested = parseFloat(incredPMSMatch[2].replace(/,/g,''));
+    const investorRaw = genericInvestor?.[1] || t.match(/Shalini\s+Bokaria/i)?.[0] || '';
+    const investor = matchInvestorName(investorRaw);
+    const folio = t.match(/Owner\s*:\s*(\d+)/i)?.[1] || '';
+
+    results.push({
+      state: matchHolding(folio, fundName) ? 'update' : 'new',
+      fundName, investor, folio, soaDate,
+      currentValue: value, invested,
+      type: 'PMS', category: 'PMS',
+      schemeCode: '', fundHouse: 'InCred',
+      matchedId: matchHolding(folio, fundName),
+      source: 'InCred Wealth PMS Statement'
+    });
+  }
+
+  // ── Girik PMS ──
+  if(girikMatch){
+    const value = parseFloat(girikMatch[2].replace(/,/g,''));
+    const date = normaliseDate(girikMatch[1]);
+    const rawName = girikAccount?.[1]?.trim() || 'Girik PMS';
+    const rawInvestor = girikInvestor?.[0] || genericInvestor?.[1] || '';
+    const investor = matchInvestorName(rawInvestor);
+    const folio = t.match(/Account\s*:\s*(\d+)/i)?.[1] || '';
+    const invested = extractInvestedAmount(t);
+
+    if(value > 0){
+      results.push({
+        state: matchHolding(folio, 'Girik') ? 'update' : 'new',
+        fundName: 'Girik Wealth Advisors Pvt. Ltd (PMS)',
+        investor, folio, soaDate: date||soaDate,
+        currentValue: value, invested,
+        type: 'PMS', category: 'PMS',
+        schemeCode: '', fundHouse: 'Girik',
+        matchedId: matchHolding(folio, 'Girik'),
+        source: 'Girik PMS Statement'
+      });
+    } else {
+      results.push({
+        state: 'novalue',
+        fundName: rawName,
+        investor, folio,
+        message: 'Portfolio value is ₹0 — this account appears to have been fully withdrawn or is empty.',
+        source: 'Girik PMS Statement'
+      });
+    }
+  }
+
+  // ── PixelSky AIF (transaction/drawdown confirmation) ──
+  if(pixelskyMatch){
+    const investorRaw = aifInvestor?.[1]?.trim() || genericInvestor?.[1] || '';
+    const investor = matchInvestorName(investorRaw);
+    const folio = aifFolio?.[1] || '';
+    const contrib = aifContrib ? parseFloat(aifContrib[1].replace(/,/g,'')) : 0;
+    const commitment = aifCommitment ? parseFloat(aifCommitment[1].replace(/,/g,'')) : 0;
+    const units = aifUnits ? parseFloat(aifUnits[1].replace(/,/g,'')) : 0;
+    const drawdown = aifDrawdown ? parseFloat(aifDrawdown[1].replace(/,/g,'')) : 0;
+
+    // This is a drawdown/transaction confirmation — no current market valuation
+    const existingId = matchHolding(folio, 'PixelSky');
+    if(existingId){
+      results.push({
+        state: 'update',
+        fundName: 'PixelSky Capital Fund I',
+        investor, folio, soaDate,
+        currentValue: contrib, // best we have is contributed amount
+        invested: contrib,
+        type: 'AIF', category: 'AIF',
+        schemeCode: '', fundHouse: 'PixelSky',
+        matchedId: existingId,
+        note: `Drawdown confirmation — no market valuation. Invested to date: ₹${contrib.toLocaleString('en-IN')}. Total commitment: ₹${commitment.toLocaleString('en-IN')}`,
+        source: 'PixelSky AIF Proforma SOA'
+      });
+    } else {
+      results.push({
+        state: 'new',
+        fundName: 'PixelSky Capital Fund I',
+        investor, folio, soaDate,
+        currentValue: contrib,
+        invested: contrib,
+        units,
+        type: 'AIF', category: 'AIF',
+        schemeCode: '', fundHouse: 'PixelSky',
+        note: `New AIF drawdown — invested ₹${contrib.toLocaleString('en-IN')} of ₹${commitment.toLocaleString('en-IN')} total commitment.`,
+        source: 'PixelSky AIF Proforma SOA'
+      });
+    }
+  }
+
+  // ── Fallback: generic investor + value extraction ──
+  if(!results.length){
+    const investorRaw = genericInvestor?.[1]||'';
+    const investor = matchInvestorName(investorRaw);
+    const value = extractCurrentValue(t);
+    const invested = extractInvestedAmount(t);
+    const folio = t.match(/[Ff]olio[^:]*:?\s*([A-Z0-9\/\-]+)/)?.[1]||'';
+    const fundMatch = t.match(/(?:Scheme|Fund|Portfolio)\s+Name[^:]*:?\s*([A-Za-z][A-Za-z\s\-&]+(?:Fund|Portfolio|Scheme)[^\n]{0,50})/i);
+    const fundName = fundMatch?.[1]?.trim()||'Unknown Fund';
+
+    if(value > 0 && investor){
+      results.push({
+        state: matchHolding(folio, fundName) ? 'update' : 'new',
+        fundName, investor, folio, soaDate,
+        currentValue: value, invested,
+        type: 'MF', category: 'Equity',
+        schemeCode: '', fundHouse: extractFundHouse(fundName),
+        matchedId: matchHolding(folio, fundName),
+        source: 'Generic statement'
+      });
+    }
+  }
+
+  return results;
+}
+
+// ── helpers ──
+function matchInvestorName(raw){
+  if(!raw) return '';
+  const r = raw.trim().toLowerCase();
+  for(const m of MEMBERS){ if(r.includes(m.toLowerCase())) return m; }
+  // partial match
+  if(r.includes('piyush') && r.includes('huf')) return 'Piyush Bokaria HUF';
+  if(r.includes('piyush'))  return 'Piyush Bokaria';
+  if(r.includes('babita'))  return 'Babita Bokaria';
+  if(r.includes('rohan'))   return 'Rohan Bokaria';
+  if(r.includes('kavya'))   return 'Kavya Bokaria';
+  return raw.trim();
+}
+
+function matchHolding(folio, fundName){
+  // Try folio match first
+  if(folio){
+    const byFolio = portfolioData.find(h=> h.folio && h.folio.replace(/\s/g,'').toLowerCase() === folio.replace(/\s/g,'').toLowerCase());
+    if(byFolio) return byFolio.id;
+  }
+  // Fuzzy fund name match
+  if(fundName){
+    const fn = fundName.toLowerCase();
+    const byName = portfolioData.find(h=>{
+      const hname = (h.originalName||h.fund||'').toLowerCase();
+      const words = fn.split(/\s+/).filter(w=>w.length>3);
+      const matches = words.filter(w=>hname.includes(w)).length;
+      return matches >= 2;
+    });
+    if(byName) return byName.id;
+  }
+  return null;
+}
+
+function extractCurrentValue(text){
+  const patterns = [
+    /(?:Current|Market)\s+Value\s*(?:\(INR\))?\s*[:\-₹]?\s*([\d,]+(?:\.\d+)?)/i,
+    /Portfolio\s+Value[^\d]*([\d,]+(?:\.\d+)?)/i,
+    /Total\s*[:\-]?\s*[\d,]*\s*([\d,]+\.\d{2})\s*$/im,
+    /Value\s*\(\s*₹?\s*\)\s*([\d,]+(?:\.\d+)?)/i,
+  ];
+  for(const p of patterns){
+    const m = text.match(p);
+    if(m) return parseFloat(m[1].replace(/,/g,''));
+  }
+  return 0;
+}
+
+function extractInvestedAmount(text){
+  const patterns = [
+    /(?:Total\s+Cost|Invested|Contribution(?:\s+Amount)?|Purchase\s+Value)\s*[:\-₹]?\s*([\d,]+(?:\.\d+)?)/i,
+    /Capital\s+(?:Contributed|Inflow)\s*[:\-₹]?\s*([\d,]+(?:\.\d+)?)/i,
+    /Commitment\s+Amount\s*[:\(\s₹]*([\d,]+(?:\.\d+)?)/i,
+  ];
+  for(const p of patterns){
+    const m = text.match(p);
+    if(m) return parseFloat(m[1].replace(/,/g,''));
+  }
+  return 0;
+}
+
+function extractFundHouse(name){
+  const houses = ['Nippon','Mirae','ICICI','HDFC','SBI','Kotak','Axis','Motilal','DSP','Franklin','Edelweiss','Canara','HSBC','Quant','Invesco','InCred','Girik','PixelSky','Xponentia','Emkay'];
+  for(const h of houses){ if(name.includes(h)) return h; }
+  return '';
+}
+
+function normaliseDate(raw){
+  if(!raw) return '';
+  // dd/mm/yyyy → yyyy-mm-dd
+  const m1 = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+  // dd-Mon-yyyy
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const m2 = raw.match(/(\d{2})-([A-Za-z]{3})-(\d{4})/);
+  if(m2) return `${m2[3]}-${months[m2[2]]||'01'}-${m2[1]}`;
+  return raw;
+}
+
+// ── Card renderer ──
+function renderSOACard(r, idx, container){
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px';
+
+  if(r.error){
+    card.innerHTML = `<div style="color:var(--red);font-size:12px">⚠ Error parsing <strong>${r.fileName}</strong>: ${r.message}</div>`;
+    container.appendChild(card);
+    return;
+  }
+
+  const isNew    = r.state === 'new';
+  const isUpdate = r.state === 'update';
+  const noValue  = r.state === 'novalue';
+
+  // Badge
+  let badge = '';
+  if(isNew)    badge = `<span style="background:rgba(58,159,212,0.15);color:#3a9fd4;border:1px solid rgba(58,159,212,0.3);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">NEW FUND</span>`;
+  if(isUpdate) badge = `<span style="background:rgba(92,184,138,0.12);color:var(--green);border:1px solid rgba(92,184,138,0.25);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">UPDATE</span>`;
+  if(noValue)  badge = `<span style="background:rgba(200,169,110,0.12);color:var(--accent);border:1px solid rgba(200,169,110,0.3);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">NO VALUATION</span>`;
+
+  const matched = r.matchedId ? portfolioData.find(h=>h.id===r.matchedId) : null;
+  const matchInfo = matched ? `<div style="font-size:10px;color:var(--green);margin-top:4px">✓ Matched to: ${matched.originalName||matched.fund} (ID ${matched.id})</div>` : '';
+
+  const noteHtml = r.note ? `<div style="font-size:11px;color:var(--accent);background:rgba(200,169,110,0.07);border:1px solid rgba(200,169,110,0.2);border-radius:6px;padding:8px 10px;margin-top:10px">${r.note}</div>` : '';
+
+  const srcHtml = `<div style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;margin-top:6px">Source: ${r.source}</div>`;
+
+  const membersOpts = MEMBERS.map(m=>`<option value="${m}" ${m===r.investor?'selected':''}>${m}</option>`).join('');
+  const typeOpts = ['MF','PMS','AIF'].map(t=>`<option value="${t}" ${t===r.type?'selected':''}>${t}</option>`).join('');
+  const catOpts = CATEGORIES.map(c=>`<option value="${c}" ${c===r.category?'selected':''}>${c}</option>`).join('');
+
+  if(noValue){
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">${badge}<span style="font-size:13px;font-weight:600">${r.fundName}</span></div>
+      <div style="font-size:12px;color:var(--text-muted)">${r.message||'No current market valuation found in this document.'}</div>
+      ${srcHtml}
+      <div style="margin-top:12px;text-align:right">
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
+      </div>`;
+    container.appendChild(card);
+    return;
+  }
+
+  const fmtVal = v => v ? '₹'+parseFloat(v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
+
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      ${badge}
+      <span style="font-size:13px;font-weight:600;flex:1">${r.fundName}</span>
+    </div>
+    ${matchInfo}
+    ${isNew ? `<div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:11px;color:#3a9fd4">
+      ⚡ New fund detected — not found in current dashboard holdings. Fill in the details below and click Add to Dashboard.
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div class="modal-label">Fund Name*</div>
+        <input class="modal-input" id="soa_fname_${idx}" value="${r.fundName.replace(/"/g,'&quot;')}" style="font-size:11px">
+      </div>
+      <div>
+        <div class="modal-label">Investor*</div>
+        <select class="modal-input" id="soa_inv_${idx}" style="font-size:11px">${membersOpts}</select>
+      </div>
+      <div>
+        <div class="modal-label">Current Value (₹)*</div>
+        <input class="modal-input" id="soa_val_${idx}" type="number" value="${r.currentValue||''}" style="font-size:11px">
+      </div>
+      <div>
+        <div class="modal-label">As Of Date*</div>
+        <input class="modal-input" id="soa_date_${idx}" type="date" value="${r.soaDate||''}" style="font-size:11px">
+      </div>
+      ${isUpdate ? '' : `
+      <div>
+        <div class="modal-label">Invested Amount (₹)*</div>
+        <input class="modal-input" id="soa_inv_amt_${idx}" type="number" value="${r.invested||''}" style="font-size:11px">
+      </div>
+      <div>
+        <div class="modal-label">Fund Type*</div>
+        <select class="modal-input" id="soa_type_${idx}" style="font-size:11px">${typeOpts}</select>
+      </div>
+      <div>
+        <div class="modal-label">Category*</div>
+        <select class="modal-input" id="soa_cat_${idx}" style="font-size:11px">${catOpts}</select>
+      </div>
+      <div>
+        <div class="modal-label">Folio / Account No</div>
+        <input class="modal-input" id="soa_folio_${idx}" value="${r.folio||''}" style="font-size:11px">
+      </div>
+      <div>
+        <div class="modal-label">Fund House</div>
+        <input class="modal-input" id="soa_house_${idx}" value="${r.fundHouse||''}" style="font-size:11px">
+      </div>
+      <div>
+        <div class="modal-label">Purchase Date</div>
+        <input class="modal-input" id="soa_pdate_${idx}" type="date" value="" style="font-size:11px">
+      </div>
+      <div style="grid-column:1/-1">
+        <div class="modal-label">Scheme Code (MF only) — <span id="soa_amfi_status_${idx}" style="color:var(--text-dim)">optional</span></div>
+        <div style="display:flex;gap:8px">
+          <input class="modal-input" id="soa_code_${idx}" value="${r.schemeCode||''}" placeholder="Search or enter AMFI code" style="font-size:11px;flex:1">
+          <button class="btn-secondary" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="soaSearchAMFI(${idx})">Search AMFI</button>
+        </div>
+        <div id="soa_amfi_results_${idx}" style="display:none;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
+      </div>`}
+    </div>
+    ${noteHtml}${srcHtml}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
+      <button class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'${r.state}',${r.matchedId||'null'})">${isUpdate?'Apply Update':'Add to Dashboard'}</button>
+    </div>`;
+
+  container.appendChild(card);
+}
+
+async function soaSearchAMFI(idx){
+  const q = document.getElementById(`soa_fname_${idx}`)?.value?.trim()||
+            document.getElementById(`soa_code_${idx}`)?.value?.trim()||'';
+  if(!q) return;
+  const statusEl = document.getElementById(`soa_amfi_status_${idx}`);
+  const resultsEl = document.getElementById(`soa_amfi_results_${idx}`);
+  statusEl.textContent = 'Searching...'; statusEl.style.color='var(--accent)';
+  resultsEl.style.display='none';
+  try{
+    const r = await fetch(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(q.slice(0,50))}`);
+    const data = await r.json();
+    if(!data?.length){ statusEl.textContent='No results'; statusEl.style.color='var(--red)'; return; }
+    resultsEl.style.display='block';
+    resultsEl.innerHTML = data.slice(0,6).map(d=>`
+      <div onclick="selectSOAScheme(${idx},'${d.schemeCode}','${d.schemeName.replace(/'/g,'`')}')"
+        style="padding:8px 12px;cursor:pointer;font-size:11px;border-bottom:1px solid var(--border);transition:background 0.15s"
+        onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        <span style="font-family:'DM Mono',monospace;color:var(--accent)">${d.schemeCode}</span>
+        <span style="color:var(--text);margin-left:8px">${d.schemeName}</span>
+      </div>`).join('');
+    statusEl.textContent=`${data.length} results`; statusEl.style.color='var(--green)';
+  }catch(e){
+    statusEl.textContent='Search failed'; statusEl.style.color='var(--red)';
+  }
+}
+
+function selectSOAScheme(idx, code, name){
+  const codeEl = document.getElementById(`soa_code_${idx}`);
+  const fnameEl = document.getElementById(`soa_fname_${idx}`);
+  const statusEl = document.getElementById(`soa_amfi_status_${idx}`);
+  const resultsEl = document.getElementById(`soa_amfi_results_${idx}`);
+  if(codeEl) codeEl.value = code;
+  if(fnameEl && !fnameEl.value.trim()) fnameEl.value = name;
+  if(statusEl){ statusEl.textContent='✓ Code locked in'; statusEl.style.color='var(--green)'; }
+  if(resultsEl) resultsEl.style.display='none';
+}
+
+async function applySOACard(idx, state, matchedId){
+  const val   = parseFloat(document.getElementById(`soa_val_${idx}`)?.value)||0;
+  const date  = document.getElementById(`soa_date_${idx}`)?.value||'';
+  const fname = document.getElementById(`soa_fname_${idx}`)?.value?.trim()||'';
+  const inv   = document.getElementById(`soa_inv_${idx}`)?.value||'';
+
+  if(!val || !date || !fname || !inv){
+    alert('Please fill in all required fields (Fund Name, Investor, Current Value, As Of Date) before applying.');
+    return;
+  }
+
+  if(state === 'update' && matchedId){
+    // Update existing holding
+    const h = portfolioData.find(x=>x.id===matchedId);
+    if(h){
+      h.currentValue = val;
+      h.soaDate = date;
+      // If Sheets connected, save to pms_aif_values
+      if(sheetsConnected && (h.type==='PMS'||h.type==='AIF')){
+        await saveSinglePMSValue(h, val, h.invested, date);
+      }
+      addLog(`✓ SOA update applied: ${fname} → ₹${val.toLocaleString('en-IN')} as of ${date}`);
+    }
+    renderAll();
+  } else if(state === 'new'){
+    // Build new holding object exactly like addNewFund does
+    const type    = document.getElementById(`soa_type_${idx}`)?.value||'MF';
+    const cat     = document.getElementById(`soa_cat_${idx}`)?.value||'Equity';
+    const folio   = document.getElementById(`soa_folio_${idx}`)?.value?.trim()||'';
+    const house   = document.getElementById(`soa_house_${idx}`)?.value?.trim()||'';
+    const pdate   = document.getElementById(`soa_pdate_${idx}`)?.value||'';
+    const invAmt  = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
+    const code    = document.getElementById(`soa_code_${idx}`)?.value?.trim()||'';
+
+    const newId = Date.now();
+    const newH = {
+      id:newId, investor:inv, fund:fname, originalName:fname, currentName:'',
+      house, folio, type, category:cat,
+      invested:invAmt, currentValue:val, units:null,
+      navCost:null, currentNav:null, schemeCode:code||null,
+      purchaseDate:pdate, soaDate:date
+    };
+    portfolioData.push(newH);
+
+    if(sheetsConnected){
+      await saveNewHoldingToSheets(newH, '');
+    }
+    addLog(`✓ New fund added from SOA: ${fname} (${inv})`);
+    renderAll();
+  }
+
+  // Remove the card
+  const cards = document.getElementById('soaCards');
+  const allCards = cards.querySelectorAll('div[style*="border-radius: 10px"], div[style*="border-radius:10px"]');
+  // Find and remove this specific card by traversing
+  document.getElementById(`soa_val_${idx}`)?.closest('div[style*="border-radius"]')?.remove() ||
+  document.getElementById(`soa_fname_${idx}`)?.closest('div[style*="border-radius"]')?.remove();
+}
+
+async function saveSinglePMSValue(h, value, invested, date){
+  if(!sheetsConfig?.accessToken) return;
+  const sheetId = sheetsConfig.sheetId || DEFAULT_SHEET_ID;
+  const token = sheetsConfig.accessToken;
+  try{
+    // Try to find existing row first
+    const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A2:A500`;
+    const rr = await fetch(readUrl,{headers:{Authorization:`Bearer ${token}`}});
+    const rd = await rr.json();
+    const rows = rd.values||[];
+    const rowIdx = rows.findIndex(r=>parseInt(r[0])===h.id);
+    let writeUrl, method;
+    if(rowIdx>=0){
+      writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A${rowIdx+2}:H${rowIdx+2}?valueInputOption=USER_ENTERED`;
+      method = 'PUT';
+    } else {
+      writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+      method = 'POST';
+    }
+    await fetch(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[h.id,h.fund||h.originalName,h.investor,invested||h.invested,value,date,'SOA Upload','']]})
+    });
+  }catch(e){ console.error('saveSinglePMSValue error',e); }
+}
+
+function closeSOAModal(){
+  document.getElementById('soaReviewModal').style.display='none';
+  document.getElementById('soaCards').innerHTML='';
+}
 </script>
 </body>
 </html>
