@@ -1071,7 +1071,18 @@ const DEFAULT_SHEET_ID='1EH3OKMAo_PZdK0DuplRvUH7J6IIaWOcOf5Tmlfglon8';
 const DEFAULT_CLIENT_ID='54722716336-puhqj8e67mf44jbi9unpm2lcgplos829.apps.googleusercontent.com';
 function loadSheetsConfig(){try{const s=localStorage.getItem(LS_KEY);if(s){sheetsConfig=JSON.parse(s);return true;}}catch(e){}return false;}
 function saveSheetsConfig(cfg){sheetsConfig=cfg;try{localStorage.setItem(LS_KEY,JSON.stringify({sheetId:cfg.sheetId,clientId:cfg.clientId}));}catch(e){}}
-function openModal(id){document.getElementById(id).classList.add('visible');}
+function openModal(id){
+  document.getElementById(id).classList.add('visible');
+  // Re-apply credential pre-fill every time sheets modal opens (guards against browser clearing)
+  if(id==='sheetsModal'){
+    const sid = (sheetsConfig?.sheetId) || DEFAULT_SHEET_ID;
+    const cid = (sheetsConfig?.clientId) || DEFAULT_CLIENT_ID;
+    const siEl = document.getElementById('sheetIdInput');
+    const ciEl = document.getElementById('clientIdInput');
+    if(siEl && !siEl.value) siEl.value = sid;
+    if(ciEl && !ciEl.value) ciEl.value = cid;
+  }
+}
 function closeModal(id){document.getElementById(id).classList.remove('visible');}
 
 async function connectSheets(){
