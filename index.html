@@ -779,7 +779,13 @@ function categoryTotals(){
 // AMFI NAV FETCH
 // ═══════════════════════════════════
 async function fetchSingleNAV(code){
-  try{const r=await fetch(`https://api.mfapi.in/mf/${code}/latest`);if(!r.ok)return null;const d=await r.json();if(d.data?.length)return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch(e){}return null;
+  try{
+    const r=await fetch(`https://api.mfapi.in/mf/${code}/latest`);
+    if(!r.ok)return null;
+    const d=await r.json();
+    if(d.data?.length)return{nav:parseFloat(d.data[0].nav),date:d.data[0].date,schemeName:d.meta?.scheme_name||''};
+  }catch(e){}
+  return null;
 }
 async function refreshNAVs(){
   const btn=document.getElementById('refreshBtn'),icon=document.getElementById('refreshIcon');
@@ -828,7 +834,7 @@ async function refreshNAVs(){
   st.textContent='Verifying scheme codes against AMFI...';
   const logContainer = document.getElementById('updateLog');
   logContainer.innerHTML = ''; // clear previous log
-  await runHygieneCheck();
+  runHygieneCheck();
 
   // 5. Write full portfolio snapshot to Sheets
   if(sheetsConnected){
@@ -1986,61 +1992,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ═══════════════════════════════════
 // SCHEME CODE HYGIENE CHECK
 // ═══════════════════════════════════
-async function runHygieneCheck(){
+function runHygieneCheck(){
+  // Uses navCache already populated during Refresh NAVs — zero extra API calls
   const container = document.getElementById('updateLog');
-  const codes = [...new Set(portfolioData.filter(h=>h.schemeCode).map(h=>({code:h.schemeCode,name:h.originalName||h.fund||''}) ))];
-  let issues = 0, renamed = 0;
+  const seen = new Set();
+  let issues = 0, renamed = 0, checked = 0;
 
-  for(const {code, name} of codes){
-    try{
-      const r = await fetch(`https://api.mfapi.in/mf/${code}/latest`);
-      if(!r.ok){ addHygieneLog(container,'error',`⚠ Scheme ${code} (${name.slice(0,35)}) — not found on AMFI. Verify scheme code.`); issues++; continue; }
-      const d = await r.json();
-      const amfiName = d?.meta?.scheme_name||'';
-      const latestNav = d?.data?.[0];
-      const navDate = latestNav?.date||'';
+  portfolioData.filter(h=>h.schemeCode).forEach(h=>{
+    const code = String(h.schemeCode);
+    const name = h.originalName||h.fund||'';
+    if(seen.has(code)) return;
+    seen.add(code);
+    checked++;
 
-      // Stale NAV check — more than 10 calendar days old
-      if(navDate){
-        const [dd,mm,yyyy] = navDate.split('-');
-        const navDt = new Date(`${yyyy}-${mm}-${dd}`);
-        const ageDays = Math.floor((new Date()-navDt)/86400000);
-        if(ageDays > 10){
-          addHygieneLog(container,'warn',`⚠ ${name.slice(0,40)} — NAV is ${ageDays} days old (${navDate}). Fund may be merged or closed.`);
-          issues++;
-        }
-      }
+    const cached = navCache[code];
 
-      // Name change check — update currentName automatically
-      if(amfiName && amfiName !== name){
-        const holdings = portfolioData.filter(h=>h.schemeCode===code);
-        holdings.forEach(h=>{
-          if(h.currentName !== amfiName){
-            h.currentName = amfiName;
-            renamed++;
-          }
-        });
-        addHygieneLog(container,'warn',`↪ ${name.slice(0,35)} renamed → ${amfiName.slice(0,40)}`);
-      } else {
-        addHygieneLog(container,'ok',`✓ ${name.slice(0,50)} — scheme code verified`);
-      }
-
-      await new Promise(x=>setTimeout(x,80));
-    }catch(e){
-      addHygieneLog(container,'error',`✗ ${name.slice(0,40)} — hygiene check failed: ${e.message}`);
+    // Code not found in navCache — fetch failed during NAV refresh
+    if(!cached){
+      addHygieneLog(container,'error',`⚠ ${name.slice(0,45)} — NAV fetch failed. Verify scheme code ${code}.`);
       issues++;
+      return;
     }
-  }
 
-  // Summary
+    // Stale NAV check — more than 10 calendar days old
+    if(cached.date){
+      const parts = cached.date.split('-'); // dd-mm-yyyy
+      const navDt = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      const ageDays = Math.floor((new Date()-navDt)/86400000);
+      if(ageDays > 10){
+        addHygieneLog(container,'warn',`⚠ ${name.slice(0,40)} — NAV is ${ageDays} days old (${cached.date}). Fund may be merged or closed.`);
+        issues++;
+        return;
+      }
+    }
+
+    // Name change check — update currentName automatically
+    const amfiName = cached.schemeName||'';
+    if(amfiName && amfiName !== name){
+      portfolioData.filter(hh=>String(hh.schemeCode)===code).forEach(hh=>{
+        if(hh.currentName !== amfiName){ hh.currentName = amfiName; renamed++; }
+      });
+      addHygieneLog(container,'warn',`↪ ${name.slice(0,35)} renamed → ${amfiName.slice(0,40)}`);
+    } else {
+      addHygieneLog(container,'ok',`✓ ${name.slice(0,50)} — verified`);
+    }
+  });
+
+  // Summary line
   if(issues===0 && renamed===0){
-    addHygieneLog(container,'ok',`✓ All ${codes.length} scheme codes verified clean.`);
+    addHygieneLog(container,'ok',`✓ All ${checked} scheme codes verified clean.`);
   } else {
     if(renamed>0) addHygieneLog(container,'warn',`↪ ${renamed} fund name(s) auto-updated from AMFI.`);
-    if(issues>0)  addHygieneLog(container,'error',`⚠ ${issues} issue(s) found — review entries above.`);
+    if(issues>0)  addHygieneLog(container,'error',`⚠ ${issues} issue(s) need attention — review above.`);
   }
 
-  if(renamed>0) renderHoldings(); // Re-render to show updated RENAMED badges
+  if(renamed>0) renderHoldings();
 }
 
 function addHygieneLog(container, type, msg){
