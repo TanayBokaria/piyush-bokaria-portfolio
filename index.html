@@ -2238,15 +2238,47 @@ async function handleSOAUpload(event){
   }
 
   status.style.display = 'none';
-  desc.textContent = `Review extracted data below. Edit any field before applying.`;
+
+  // Always show the panel — even for zero results or errors
+  // Count extracted fields across all results
+  const totalFields = results.filter(r=>!r.error).reduce((a,r)=>a+scoreExtraction(r).found,0);
+  const totalPossible = results.filter(r=>!r.error).reduce((a,r)=>a+scoreExtraction(r).total,0);
 
   if(!results.length){
-    cards.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">No recognisable investment data found in the uploaded file(s).</div>';
-    return;
+    // PDF loaded but nothing recognised — show blank card for manual entry
+    desc.textContent = 'Could not automatically extract data from this PDF. Please fill in the details manually.';
+    const blankResult = buildBlankResult(files[0]?.name||'Unknown file');
+    renderSOACard(blankResult, 0, cards);
+    summary.textContent = 'Manual entry required';
+  } else {
+    const pct = totalPossible>0 ? Math.round((totalFields/totalPossible)*100) : 0;
+    desc.textContent = `Review and complete the fields below before applying. ${pct}% of fields extracted automatically.`;
+    results.forEach((r,i) => renderSOACard(r, i, cards));
+    const autoCount = results.filter(r=>!r.error && r.state!=='novalue').length;
+    summary.textContent = `${autoCount} holding(s) from ${files.length} file(s) · ${pct}% auto-extracted`;
   }
+}
 
-  results.forEach((r,i) => renderSOACard(r, i, cards));
-  summary.textContent = `${results.length} holding(s) extracted from ${files.length} file(s)`;
+// Score how many fields were successfully extracted
+function scoreExtraction(r){
+  const fields = ['fundName','investor','folio','soaDate','currentValue','invested'];
+  const found = fields.filter(f=>r[f] && r[f]!=='' && r[f]!==0).length;
+  return {found, total: fields.length};
+}
+
+// Build a blank card for completely unrecognised PDFs
+function buildBlankResult(fileName){
+  return {
+    state: 'new',
+    fundName: '', investor: '', folio: '', soaDate: '',
+    currentValue: 0, invested: 0,
+    type: 'PMS', category: 'AIF',
+    schemeCode: '', fundHouse: '',
+    matchedId: null,
+    source: fileName,
+    partialExtraction: true,
+    extractionWarning: 'No data could be automatically extracted from this PDF. Please fill in all fields manually.'
+  };
 }
 
 async function extractPDFText(file){
@@ -2279,11 +2311,11 @@ function parseStatementText(text, fileName){
 
   // ── PixelSky / Generic AIF ──
   const pixelskyMatch = t.match(/PixelSky\s+Capital\s+Fund\s+[I1]+/i);
-  const aifInvestor = t.match(/Investor\s+Name\s*:?\s*([A-Za-z\s]+Bokaria[^\n]{0,20})/i);
-  const aifFolio = t.match(/Folio\s+No\s*:?\s*([A-Z0-9_]+)/i);
-  const aifContrib = t.match(/Total\s+Capital\s+Contributed\s*₹?\s*([\d,]+)/i);
-  const aifUnits = t.match(/Total\s+Units\s+Allotted\s*([\d,]+)/i);
-  const aifCommitment = t.match(/Total\s+Capital\s+Commitment\s*₹?\s*([\d,]+)/i);
+  const aifInvestor = t.match(/Investor\s+Name\s*:?\s*:?\s*([A-Za-z]+\s+Bokaria(?:\s+HUF)?)/i);
+  const aifFolio = t.match(/Folio\s+(?:ID|No)\.?\s*:?\s*([A-Z0-9_\/\-]+)/i);
+  const aifContrib = t.match(/Total\s+(?:Net\s+)?Capital\s+Contributed\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
+  const aifUnits = t.match(/(?:Total\s+)?Units\s+Allotted[^\d]*([\d,]+)/i);
+  const aifCommitment = t.match(/Total\s+Capital\s+Commitment\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
   const aifDrawdown = t.match(/Amount\s*\(INR\)\s*₹?\s*([\d,]+)/i);
 
   // ── Generic investor name ──
@@ -2378,6 +2410,10 @@ function parseStatementText(text, fileName){
     const commitment = aifCommitment ? parseFloat(aifCommitment[1].replace(/,/g,'')) : 0;
     const units = aifUnits ? parseFloat(aifUnits[1].replace(/,/g,'')) : 0;
     const drawdown = aifDrawdown ? parseFloat(aifDrawdown[1].replace(/,/g,'')) : 0;
+    // Calculate current value from NAV if available (NAV per Unit × Balance Units)
+    const navPerUnit = t.match(/NAV\s+per\s+Unit[^:]*:\s*(?:INR|₹|Rs\.?)?\s*([\d.]+)/i);
+    const navValue = navPerUnit ? parseFloat(navPerUnit[1]) : null;
+    const currentValueFromNav = (navValue && units > 0) ? navValue * units : contrib;
 
     // This is a drawdown/transaction confirmation — no current market valuation
     const existingId = matchHolding(folio, 'PixelSky');
@@ -2386,7 +2422,7 @@ function parseStatementText(text, fileName){
         state: 'update',
         fundName: 'PixelSky Capital Fund I',
         investor, folio, soaDate,
-        currentValue: contrib, // best we have is contributed amount
+        currentValue: currentValueFromNav,
         invested: contrib,
         type: 'AIF', category: 'AIF',
         schemeCode: '', fundHouse: 'PixelSky',
@@ -2399,7 +2435,7 @@ function parseStatementText(text, fileName){
         state: 'new',
         fundName: 'PixelSky Capital Fund I',
         investor, folio, soaDate,
-        currentValue: contrib,
+        currentValue: currentValueFromNav,
         invested: contrib,
         units,
         type: 'AIF', category: 'AIF',
@@ -2411,6 +2447,7 @@ function parseStatementText(text, fileName){
   }
 
   // ── Fallback: generic investor + value extraction ──
+  // Always extract whatever we can, even partial — never return empty
   if(!results.length){
     const investorRaw = genericInvestor?.[1]||'';
     const investor = matchInvestorName(investorRaw);
@@ -2418,19 +2455,27 @@ function parseStatementText(text, fileName){
     const invested = extractInvestedAmount(t);
     const folio = t.match(/[Ff]olio[^:]*:?\s*([A-Z0-9\/\-]+)/)?.[1]||'';
     const fundMatch = t.match(/(?:Scheme|Fund|Portfolio)\s+Name[^:]*:?\s*([A-Za-z][A-Za-z\s\-&]+(?:Fund|Portfolio|Scheme)[^\n]{0,50})/i);
-    const fundName = fundMatch?.[1]?.trim()||'Unknown Fund';
+    const fundName = fundMatch?.[1]?.trim()||'';
 
-    if(value > 0 && investor){
-      results.push({
-        state: matchHolding(folio, fundName) ? 'update' : 'new',
-        fundName, investor, folio, soaDate,
-        currentValue: value, invested,
-        type: 'MF', category: 'Equity',
-        schemeCode: '', fundHouse: extractFundHouse(fundName),
-        matchedId: matchHolding(folio, fundName),
-        source: 'Generic statement'
-      });
-    }
+    // Calculate extraction score to drive the warning
+    const fieldsFound = [fundName, investor, folio, soaDate, value>0, invested>0].filter(Boolean).length;
+
+    results.push({
+      state: (matchHolding(folio, fundName) && fundName) ? 'update' : 'new',
+      fundName, investor, folio, soaDate,
+      currentValue: value, invested,
+      type: 'MF', category: 'Equity',
+      schemeCode: '', fundHouse: extractFundHouse(fundName),
+      matchedId: matchHolding(folio, fundName),
+      source: fileName,
+      partialExtraction: fieldsFound < 4,
+      extractionScore: fieldsFound,
+      extractionWarning: fieldsFound < 4
+        ? `Only ${fieldsFound} of 6 fields could be extracted automatically. Please review and complete all highlighted fields.`
+        : fieldsFound < 6
+          ? `${fieldsFound} of 6 fields extracted. Please verify the highlighted fields.`
+          : null
+    });
   }
 
   return results;
@@ -2505,13 +2550,20 @@ function extractFundHouse(name){
 
 function normaliseDate(raw){
   if(!raw) return '';
-  // dd/mm/yyyy → yyyy-mm-dd
-  const m1 = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if(m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
-  // dd-Mon-yyyy
-  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  const m2 = raw.match(/(\d{2})-([A-Za-z]{3})-(\d{4})/);
-  if(m2) return `${m2[3]}-${months[m2[2]]||'01'}-${m2[1]}`;
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12',
+    January:'01',February:'02',March:'03',April:'04',May:'05',June:'06',July:'07',August:'08',September:'09',October:'10',November:'11',December:'12'};
+  // dd/mm/yyyy
+  const m1 = raw.match(/(\d{1,2})\/(\d{2})\/(\d{4})/);
+  if(m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // dd-Mon-yyyy or dd-Mon-yy
+  const m2 = raw.match(/(\d{1,2})-([A-Za-z]{3,})-?(\d{2,4})/);
+  if(m2){ const yr=m2[3].length===2?'20'+m2[3]:m2[3]; return `${yr}-${months[m2[2]]||'01'}-${m2[1].padStart(2,'0')}`; }
+  // "31st March 2026" or "31 March 2026"
+  const m3 = raw.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/);
+  if(m3){ return `${m3[3]}-${months[m3[2]]||'01'}-${m3[1].padStart(2,'0')}`; }
+  // dd-mm-yyyy
+  const m4 = raw.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if(m4) return `${m4[3]}-${m4[2]}-${m4[1]}`;
   return raw;
 }
 
@@ -2520,8 +2572,19 @@ function renderSOACard(r, idx, container){
   const card = document.createElement('div');
   card.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px';
 
+  // Hard failure — PDF couldn't be read at all
   if(r.error){
-    card.innerHTML = `<div style="color:var(--red);font-size:12px">⚠ Error parsing <strong>${r.fileName}</strong>: ${r.message}</div>`;
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="background:rgba(224,123,106,0.15);color:var(--red);border:1px solid rgba(224,123,106,0.3);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">READ ERROR</span>
+        <span style="font-size:13px;font-weight:600">${sanitize(r.fileName||'Unknown file')}</span>
+      </div>
+      <div style="font-size:12px;color:var(--red);margin-bottom:12px">⚠ ${sanitize(r.message)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">This PDF could not be opened. It may be password-protected, corrupted, or an image-only scan with no text layer. Please enter the values manually using the Update Values panel or Add New Fund.</div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
+        <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="openModal('addFundModal');this.closest('#soaReviewModal').style.display='none'">Add Manually</button>
+      </div>`;
     container.appendChild(card);
     return;
   }
@@ -2530,6 +2593,23 @@ function renderSOACard(r, idx, container){
   const isUpdate = r.state === 'update';
   const noValue  = r.state === 'novalue';
 
+  // Compute extraction score for this card
+  const scoreFields = {
+    'Fund Name': !!r.fundName,
+    'Investor':  !!r.investor,
+    'Folio':     !!r.folio,
+    'Date':      !!r.soaDate,
+    'Current Value': !!(r.currentValue && r.currentValue>0),
+    'Invested':  !!(r.invested && r.invested>0),
+  };
+  const foundCount = Object.values(scoreFields).filter(Boolean).length;
+  const totalCount = Object.keys(scoreFields).length;
+  const isPartial = r.partialExtraction || foundCount < totalCount;
+  const scorePct = Math.round((foundCount/totalCount)*100);
+
+  // Score bar colour
+  const scoreColour = scorePct===100 ? 'var(--green)' : scorePct>=50 ? 'var(--accent)' : 'var(--red)';
+
   // Badge
   let badge = '';
   if(isNew)    badge = `<span style="background:rgba(58,159,212,0.15);color:#3a9fd4;border:1px solid rgba(58,159,212,0.3);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">NEW FUND</span>`;
@@ -2537,11 +2617,31 @@ function renderSOACard(r, idx, container){
   if(noValue)  badge = `<span style="background:rgba(200,169,110,0.12);color:var(--accent);border:1px solid rgba(200,169,110,0.3);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">NO VALUATION</span>`;
 
   const matched = r.matchedId ? portfolioData.find(h=>h.id===r.matchedId) : null;
-  const matchInfo = matched ? `<div style="font-size:10px;color:var(--green);margin-top:4px">✓ Matched to: ${matched.originalName||matched.fund} (ID ${matched.id})</div>` : '';
+  const matchInfo = matched ? `<div style="font-size:10px;color:var(--green);margin-top:4px">✓ Matched to: ${sanitize(matched.originalName||matched.fund||'')} (ID ${matched.id})</div>` : '';
 
-  const noteHtml = r.note ? `<div style="font-size:11px;color:var(--accent);background:rgba(200,169,110,0.07);border:1px solid rgba(200,169,110,0.2);border-radius:6px;padding:8px 10px;margin-top:10px">${r.note}</div>` : '';
+  const noteHtml = r.note ? `<div style="font-size:11px;color:var(--accent);background:rgba(200,169,110,0.07);border:1px solid rgba(200,169,110,0.2);border-radius:6px;padding:8px 10px;margin-top:10px">${sanitize(r.note)}</div>` : '';
 
-  const srcHtml = `<div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono,monospace);margin-top:6px">Source: ${r.source}</div>`;
+  const srcHtml = `<div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono,monospace);margin-top:6px">Source: ${sanitize(r.source||'')}</div>`;
+
+  // Extraction score bar
+  const missingFields = Object.entries(scoreFields).filter(([k,v])=>!v).map(([k])=>k);
+  const scoreBarHtml = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isPartial?'8px':'4px'}">
+      <div style="flex:1;background:var(--surface);border-radius:4px;height:4px;overflow:hidden">
+        <div style="height:100%;width:${scorePct}%;background:${scoreColour};transition:width 0.4s"></div>
+      </div>
+      <span style="font-size:10px;font-family:var(--font-mono,monospace);color:${scoreColour};white-space:nowrap">${foundCount}/${totalCount} fields</span>
+    </div>
+    ${isPartial && missingFields.length>0
+      ? `<div style="background:rgba(224,123,106,0.08);border:1px solid rgba(224,123,106,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--red)">
+          ⚠ Could not extract: <strong>${missingFields.join(', ')}</strong>. Please fill these in before applying.
+        </div>`
+      : ''}`;
+
+  // Report link for partial extractions
+  const reportLink = isPartial
+    ? `<a href="mailto:tanay@intermode.in?subject=SOA+Parsing+Issue&body=File%3A+${encodeURIComponent(r.source||'')}%0AFields+missing%3A+${encodeURIComponent(missingFields.join(', '))}%0AExtracted+${foundCount}+of+${totalCount}+fields" style="font-size:10px;color:var(--text-muted);text-decoration:underline;cursor:pointer">Report parsing issue</a>`
+    : '';
 
   const membersOpts = MEMBERS.map(m=>`<option value="${m}" ${m===r.investor?'selected':''}>${m}</option>`).join('');
   const typeOpts = ['MF','PMS','AIF'].map(t=>`<option value="${t}" ${t===r.type?'selected':''}>${t}</option>`).join('');
@@ -2549,10 +2649,12 @@ function renderSOACard(r, idx, container){
 
   if(noValue){
     card.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">${badge}<span style="font-size:13px;font-weight:600">${r.fundName}</span></div>
-      <div style="font-size:12px;color:var(--text-muted)">${r.message||'No current market valuation found in this document.'}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">${badge}<span style="font-size:13px;font-weight:600">${sanitize(r.fundName)}</span></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${sanitize(r.message)||'No current market valuation found in this document.'}</div>
+      <div style="font-size:11px;color:var(--text-dim)">This appears to be a transaction confirmation rather than a valuation statement. No action needed unless the invested amount has changed.</div>
       ${srcHtml}
-      <div style="margin-top:12px;text-align:right">
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <a href="mailto:tanay@intermode.in?subject=SOA+Parsing+Issue&body=File%3A+${encodeURIComponent(r.source)}%0ANote%3A+No+valuation+found+in+this+statement" style="font-size:11px;color:var(--text-muted);align-self:center;text-decoration:underline">Report issue</a>
         <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
       </div>`;
     container.appendChild(card);
@@ -2561,13 +2663,17 @@ function renderSOACard(r, idx, container){
 
   const fmtVal = v => v ? '₹'+parseFloat(v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
 
+  // Helper: mark required field label red if empty
+  const req = (label, val) => `<div class="modal-label" style="${!val||val===0?'color:var(--red)':''}">${label}${!val||val===0?' <span style=\"color:var(--red)\">*</span>':''}</div>`;
+
   card.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       ${badge}
-      <span style="font-size:13px;font-weight:600;flex:1">${r.fundName}</span>
+      <span style="font-size:13px;font-weight:600;flex:1">${sanitize(r.fundName)||'<span style=\"color:var(--text-dim)\">Fund name not detected</span>'}</span>
     </div>
     ${matchInfo}
-    ${isNew ? `<div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:11px;color:#3a9fd4">
+    ${scoreBarHtml}
+    ${isNew ? `<div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#3a9fd4">
       ⚡ New fund detected — not found in current dashboard holdings. Fill in the details below and click Add to Dashboard.
     </div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -2623,6 +2729,7 @@ function renderSOACard(r, idx, container){
     </div>
     ${noteHtml}${srcHtml}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      ${reportLink}
       <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
       <button class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'${r.state}',${r.matchedId||'null'})">${isUpdate?'Apply Update':'Add to Dashboard'}</button>
     </div>`;
