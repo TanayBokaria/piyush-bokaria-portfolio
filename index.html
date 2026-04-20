@@ -829,11 +829,10 @@ async function refreshNAVs(){
 
   lastRefreshed=new Date();st.textContent='Done!';
 
-  // 4. Run scheme code hygiene check
-  document.getElementById('loadingText').textContent='Scheme code hygiene check';
-  st.textContent='Verifying scheme codes against AMFI...';
-  const logContainer = document.getElementById('updateLog');
-  logContainer.innerHTML = ''; // clear previous log
+  // 4. Run scheme code hygiene check (uses navCache — instant)
+  document.getElementById('loadingText').textContent='Almost done';
+  st.textContent='Running hygiene checks...';
+  document.getElementById('updateLog').innerHTML = '';
   runHygieneCheck();
 
   // 5. Write full portfolio snapshot to Sheets
@@ -1945,50 +1944,7 @@ function filterTable(member,btnEl){
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  renderAll();
-  fetchUSDINR(); // pre-load FX rate on startup
 
-  // Always pre-fill modal with credentials — from localStorage if saved, otherwise defaults
-  const saved = loadSheetsConfig();
-  const sheetId  = (saved && sheetsConfig?.sheetId)  || DEFAULT_SHEET_ID;
-  const clientId = (saved && sheetsConfig?.clientId) || DEFAULT_CLIENT_ID;
-  document.getElementById('sheetIdInput').value  = sheetId;
-  document.getElementById('clientIdInput').value = clientId;
-
-  // Load Google Identity Services and attempt silent sign-in
-  updateSheetsPill('', 'Sheets: Connecting...');
-  try {
-    await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://accounts.google.com/gsi/client';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-
-    // Request token silently — prompt:'none' avoids showing the popup if already signed in
-    google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/spreadsheets',
-      prompt: '',   // empty string = use existing session if available, else show popup
-      callback: async (tok) => {
-        if (tok.error) {
-          // Silent sign-in failed — show the manual connect pill
-          updateSheetsPill('', 'Sheets: Click to connect');
-          return;
-        }
-        saveSheetsConfig({ sheetId, clientId, accessToken: tok.access_token });
-        sheetsConnected = true;
-        updateSheetsPill('connected', 'Sheets: Connected');
-        await loadFromSheets();
-        renderAll();
-      }
-    }).requestAccessToken({ prompt: '' });
-
-  } catch(e) {
-    updateSheetsPill('', 'Sheets: Click to connect');
-  }
-});
 // ═══════════════════════════════════
 // SCHEME CODE HYGIENE CHECK
 // ═══════════════════════════════════
