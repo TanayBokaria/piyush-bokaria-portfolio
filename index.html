@@ -813,7 +813,10 @@ async function refreshNAVs(){
 // PORTFOLIO SNAPSHOT → SHEETS
 // ═══════════════════════════════════
 async function writePortfolioSnapshot(){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId) return false;
+  if(!sheetsConfig?.accessToken) return false;
+  const sheetId = sheetsConfig?.sheetId || DEFAULT_SHEET_ID;
+  const token = sheetsConfig.accessToken;
+  if(!sheetId||!token) return false;
   try{
     const fx = usdInrRate||84.5;
     const ts = lastRefreshed.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -888,8 +891,6 @@ async function writePortfolioSnapshot(){
     ];
 
     // Clear the sheet and rewrite
-    const sheetId = sheetsConfig.sheetId;
-    const token = sheetsConfig.accessToken;
 
     // First clear existing data
     await fetch(
@@ -1050,7 +1051,7 @@ async function connectSheets(){
     scope:'https://www.googleapis.com/auth/spreadsheets',
     callback:async(tok)=>{
       if(tok.error){statusEl.style.color='var(--red)';statusEl.textContent='Sign-in failed: '+tok.error;return;}
-      saveSheetsConfig({sheetId,clientId,accessToken:tok.access_token});
+      saveSheetsConfig({sheetId:sheetId||DEFAULT_SHEET_ID,clientId,accessToken:tok.access_token});
       sheetsConnected=true;
       statusEl.style.color='var(--green)';statusEl.textContent='Connected! Loading data...';
       await loadFromSheets();
@@ -1074,7 +1075,7 @@ async function silentTokenRefresh(){
         prompt: '', // empty prompt = silent refresh if session still valid
         callback: async(tok)=>{
           if(tok.error){ resolve(false); return; }
-          saveSheetsConfig({sheetId, clientId, accessToken: tok.access_token});
+          saveSheetsConfig({sheetId: sheetId||DEFAULT_SHEET_ID, clientId, accessToken: tok.access_token});
           sheetsConnected = true;
           updateSheetsPill('connected','Sheets: Connected');
           resolve(true);
@@ -1085,7 +1086,10 @@ async function silentTokenRefresh(){
 }
 
 async function loadFromSheets(){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId)return;
+  if(!sheetsConfig?.accessToken)return;
+  const _sid=sheetsConfig?.sheetId||DEFAULT_SHEET_ID;
+  if(!_sid)return;
+  sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
   try{
     // Load PMS/AIF value updates
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/pms_aif_values!A2:H500`;
@@ -1163,7 +1167,9 @@ async function loadFromSheets(){
 }
 
 async function saveToSheets(holdingId, investedToDate, value, asOfDate, updatedBy, notes){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId) return false;
+  if(!sheetsConfig?.accessToken) return false;
+  sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
+  if(!sheetsConfig.sheetId) return false;
   const h=portfolioData.find(x=>x.id===holdingId); if(!h) return false;
   try{
     // Read existing rows to find if this holding already has a row
@@ -1652,7 +1658,9 @@ async function confirmDelete(id){
 }
 
 async function logDeletionToSheets(h){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId) return false;
+  if(!sheetsConfig?.accessToken) return false;
+  sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
+  if(!sheetsConfig.sheetId) return false;
   try{
     const vals=[[
       h.id, h.originalName||h.fund||"", h.investor, h.type,
