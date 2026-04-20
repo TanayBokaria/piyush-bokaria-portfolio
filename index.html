@@ -548,7 +548,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="codeEditorModal" style="display:none;align-items:center;justify-content:center">
+<div class="modal-overlay" id="codeEditorModal" style="align-items:center;justify-content:center">
   <div class="modal" style="width:520px;max-width:95vw">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <h2 style="margin:0">Fix Scheme Code</h2>
@@ -577,7 +577,7 @@
 </div>
 
 <!-- SOA UPLOAD REVIEW MODAL -->
-<div class="modal-overlay" id="soaReviewModal" style="display:none;align-items:flex-start;padding-top:40px;overflow-y:auto">
+<div class="modal-overlay" id="soaReviewModal" style="align-items:flex-start;padding-top:40px;overflow-y:auto">
   <div class="modal" style="width:660px;max-width:95vw;max-height:85vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <h2 style="margin:0">Statement Review</h2>
@@ -1878,7 +1878,7 @@ function openCodeEditor(holdingId){
   document.getElementById('codeEditorResults').style.display='none';
   document.getElementById('codeEditorStatus').textContent='';
   document.getElementById('codeEditorSearch').value = (h.originalName||h.fund||'').slice(0,50);
-  document.getElementById('codeEditorModal').style.display='flex';
+  openModal('codeEditorModal');
 }
 
 async function searchCodeEditor(){
@@ -2201,7 +2201,7 @@ async function handleSOAUpload(event){
   const desc = document.getElementById('soaModalDesc');
   const summary = document.getElementById('soaSummary');
 
-  modal.style.display = 'flex';
+  openModal('soaReviewModal');
   cards.innerHTML = '';
   status.style.display = 'block';
   summary.textContent = '';
@@ -2579,7 +2579,7 @@ function renderSOACard(r, idx, container){
       <div style="font-size:11px;color:var(--text-muted)">This PDF could not be opened. It may be password-protected, corrupted, or an image-only scan with no text layer. Please enter the values manually using the Update Values panel or Add New Fund.</div>
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
         <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
-        <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="openModal('addFundModal');this.closest('#soaReviewModal').style.display='none'">Add Manually</button>
+        <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="closeSOAModal();openModal('addFundModal')">Add Manually</button>
       </div>`;
     container.appendChild(card);
     return;
@@ -2855,7 +2855,7 @@ async function saveSinglePMSValue(h, value, invested, date){
 }
 
 function closeSOAModal(){
-  document.getElementById('soaReviewModal').style.display='none';
+  closeModal('soaReviewModal');
   document.getElementById('soaCards').innerHTML='';
 }
 </script>
