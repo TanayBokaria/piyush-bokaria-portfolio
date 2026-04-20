@@ -778,6 +778,13 @@ function categoryTotals(){
 // ═══════════════════════════════════
 // AMFI NAV FETCH
 // ═══════════════════════════════════
+function fetchWithTimeout(url, options={}, ms=12000){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(), ms);
+  return fetch(url, {...options, signal:controller.signal})
+    .finally(()=>clearTimeout(id));
+}
+
 async function fetchSingleNAV(code){
   try{
     const r=await fetch(`https://api.mfapi.in/mf/${code}/latest`);
@@ -837,6 +844,7 @@ async function refreshNAVs(){
 
   // 5. Write full portfolio snapshot to Sheets
   if(sheetsConnected){
+    document.getElementById('loadingText').textContent='Saving to Sheets';
     st.textContent='Saving snapshot to Google Sheets...';
     await writePortfolioSnapshot();
   }
@@ -930,19 +938,20 @@ async function writePortfolioSnapshot(){
     // Clear the sheet and rewrite
 
     // First clear existing data
-    await fetch(
+    await fetchWithTimeout(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/portfolio_snapshot:clear`,
-      {method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}}
-    );
+      {method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}},
+      12000
+    ).catch(()=>{});
 
     // Write headers + all rows
     const values = [headers, ...allRows];
     const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/portfolio_snapshot!A1?valueInputOption=USER_ENTERED`;
-    const r = await fetch(writeUrl, {
+    const r = await fetchWithTimeout(writeUrl, {
       method:'PUT',
       headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body: JSON.stringify({values})
-    });
+    }, 15000);
 
     if(!r.ok){
       const err = await r.json().catch(()=>({}));
