@@ -18,17 +18,17 @@
 
   .header{padding:26px 40px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;position:sticky;top:0;z-index:100;background:var(--bg);}
   .header-left h1{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-0.5px;}
-  .header-left .subtitle{font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;margin-top:4px;letter-spacing:0.5px;}
+  .header-left .subtitle{font-size:11px;color:var(--text-muted);font-family:var(--font-mono,monospace);margin-top:4px;letter-spacing:0.5px;}
   .header-right{display:flex;align-items:center;gap:10px;}
 
-  .sheets-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted);cursor:pointer;transition:border-color 0.2s;}
+  .sheets-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;font-family:var(--font-mono,monospace);color:var(--text-muted);cursor:pointer;transition:border-color 0.2s;}
   .sheets-pill:hover{border-color:var(--accent);}
   .sheets-pill.connected{border-color:rgba(92,184,138,0.4);color:var(--green);}
   .sheets-pill.error{border-color:rgba(224,123,106,0.4);color:var(--red);}
   .sheets-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
   .sheets-dot.live{animation:pulse 2s ease-in-out infinite;}
 
-  .last-updated{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);padding:5px 12px;border-radius:6px;}
+  .last-updated{font-family:var(--font-mono,monospace);font-size:11px;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);padding:5px 12px;border-radius:6px;}
   .refresh-btn{background:var(--accent);color:#0d0f14;border:none;padding:8px 16px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity 0.2s;}
   .refresh-btn:hover{opacity:0.85;}
   .refresh-btn:disabled{opacity:0.5;cursor:not-allowed;}
@@ -42,8 +42,8 @@
   .modal h2{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px;}
   .modal p{font-size:12px;color:var(--text-muted);margin-bottom:18px;line-height:1.6;}
   .modal-field{margin-bottom:12px;}
-  .modal-label{font-size:10px;font-family:'DM Mono',monospace;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;display:block;margin-bottom:5px;}
-  .modal-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;}
+  .modal-label{font-size:10px;font-family:var(--font-mono,monospace);color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;display:block;margin-bottom:5px;}
+  .modal-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:var(--font-mono,monospace);font-size:12px;}
   .modal-input:focus{outline:none;border-color:var(--accent);}
   .modal-actions{display:flex;gap:10px;margin-top:18px;}
   .btn-primary{flex:1;background:var(--accent);color:#0d0f14;border:none;padding:10px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
@@ -59,7 +59,7 @@
   .stat-card.green::before{background:var(--green);}
   .stat-card.teal::before{background:var(--accent2);}
   .stat-card.purple::before{background:var(--tanay);}
-  .stat-label{font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:7px;}
+  .stat-label{font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:7px;}
   .stat-value{font-family:'DM Serif Display',serif;font-size:24px;color:var(--text);line-height:1;}
   .stat-sub{font-size:11px;margin-top:5px;}
   .stat-sub.gain{color:var(--green);}
@@ -72,28 +72,28 @@
   .member-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
   .member-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:12px;color:#0d0f14;font-weight:bold;flex-shrink:0;}
   .member-name{font-size:12px;font-weight:600;}
-  .member-tag{font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;}
+  .member-tag{font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);}
 
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;}
   .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .panel-header{padding:13px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
   .panel-title{font-family:'DM Serif Display',serif;font-size:15px;}
-  .panel-badge{font-family:'DM Mono',monospace;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:3px 8px;border-radius:4px;}
+  .panel-badge{font-family:var(--font-mono,monospace);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:3px 8px;border-radius:4px;}
   .panel-body{padding:16px;}
   .chart-container{position:relative;height:205px;}
 
   .holdings-table{width:100%;border-collapse:collapse;font-size:13px;}
-  .holdings-table thead th{padding:9px 12px;text-align:left;font-size:10px;font-family:'DM Mono',monospace;color:var(--text-muted);letter-spacing:0.6px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .holdings-table thead th{padding:9px 12px;text-align:left;font-size:10px;font-family:var(--font-mono,monospace);color:var(--text-muted);letter-spacing:0.6px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
   .holdings-table tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s;}
   .holdings-table tbody tr:hover{background:var(--surface2);}
   .holdings-table tbody tr:last-child{border-bottom:none;}
   .holdings-table td{padding:9px 12px;vertical-align:middle;}
   .fund-name{font-weight:500;font-size:13px;line-height:1.3;}
-  .fund-house{display:inline-block;font-size:10px;font-family:'DM Mono',monospace;color:var(--text-muted);background:var(--surface2);padding:2px 5px;border-radius:3px;margin-top:2px;}
-  .amount{font-family:'DM Mono',monospace;font-size:12px;}
+  .fund-house{display:inline-block;font-size:10px;font-family:var(--font-mono,monospace);color:var(--text-muted);background:var(--surface2);padding:2px 5px;border-radius:3px;margin-top:2px;}
+  .amount{font-family:var(--font-mono,monospace);font-size:12px;}
   .gain-text{color:var(--green);}
   .loss-text{color:var(--red);}
-  .tag{display:inline-block;font-size:10px;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:3px;border:1px solid;}
+  .tag{display:inline-block;font-size:10px;font-family:var(--font-mono,monospace);padding:2px 6px;border-radius:3px;border:1px solid;}
   .tag-equity{color:var(--green);border-color:rgba(92,184,138,0.3);background:rgba(92,184,138,0.07);}
   .tag-debt{color:var(--accent2);border-color:rgba(126,184,164,0.3);background:rgba(126,184,164,0.07);}
   .tag-aif{color:var(--tanay);border-color:rgba(155,142,196,0.3);background:rgba(155,142,196,0.07);}
@@ -111,15 +111,15 @@
   .nav-status-row:last-child{border-bottom:none;}
   .nav-name{flex:1;min-width:0;}
   .nav-name-text{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .nav-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);}
-  .nav-value{font-family:'DM Mono',monospace;font-size:12px;margin:0 12px;color:var(--text);min-width:68px;text-align:right;}
+  .nav-date{font-family:var(--font-mono,monospace);font-size:10px;color:var(--text-muted);}
+  .nav-value{font-family:var(--font-mono,monospace);font-size:12px;margin:0 12px;color:var(--text);min-width:68px;text-align:right;}
 
   .drop-zone{border:2px dashed var(--border);border-radius:10px;padding:22px 14px;text-align:center;cursor:pointer;transition:border-color 0.2s;margin-bottom:12px;}
   .drop-zone:hover{border-color:var(--accent2);}
   .manual-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);}
   .manual-row:last-child{border-bottom:none;}
   .manual-fund-name{flex:1;font-size:11px;}
-  .manual-input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:120px;text-align:right;}
+  .manual-input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--font-mono,monospace);font-size:12px;width:120px;text-align:right;}
   .manual-input:focus{outline:none;border-color:var(--accent);}
 
   .log-row{padding:8px 13px;border-bottom:1px solid var(--border);font-size:11px;}
@@ -130,7 +130,7 @@
   .loading-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 36px;text-align:center;}
   .loading-spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:spin 1s linear infinite;}
   .loading-text{font-size:14px;color:var(--text-muted);}
-  .loading-sub{font-size:11px;color:var(--text-dim);margin-top:3px;font-family:'DM Mono',monospace;}
+  .loading-sub{font-size:11px;color:var(--text-dim);margin-top:3px;font-family:var(--font-mono,monospace);}
   .table-scroll{overflow-x:auto;}
   ::-webkit-scrollbar{width:5px;height:5px;}
   ::-webkit-scrollbar-track{background:var(--bg);}
@@ -307,7 +307,7 @@
     <div class="stat-card"><div class="stat-label">Total Invested</div><div class="stat-value" id="totalInvested">—</div><div class="stat-sub" style="color:var(--text-muted)">Across 44 holdings</div></div>
     <div class="stat-card teal"><div class="stat-label">Current Value</div><div class="stat-value" id="totalCurrent">—</div><div class="stat-sub" id="totalGainAmt">—</div></div>
     <div class="stat-card green"><div class="stat-label">Overall Return</div><div class="stat-value" id="totalReturn">—</div><div class="stat-sub" style="color:var(--text-muted)">Absolute since inception</div></div>
-    <div class="stat-card purple"><div class="stat-label">Data Freshness</div><div class="stat-value" id="navCoverage">—</div><div class="stat-sub" id="sheetsSyncStatus" style="color:var(--text-muted)">MF: live · PMS/AIF: Feb 2026</div></div>
+    <div class="stat-card purple" style="cursor:pointer" onclick="showFreshDetail()" title="Click to see details"><div class="stat-label">Data Freshness</div><div class="stat-value" id="navCoverage">—</div><div class="stat-sub" id="sheetsSyncStatus" style="color:var(--text-muted)">Hit Refresh NAVs</div></div>
   </div>
 
   <div class="members-grid" id="memberCards"></div>
@@ -388,7 +388,7 @@
     <div class="panel-header">
       <div class="panel-title">NYSE Holdings</div>
       <div style="display:flex;align-items:center;gap:8px">
-        <div id="fxPill" style="font-family:'DM Mono',monospace;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:3px 10px;border-radius:4px">USD/INR: —</div>
+        <div id="fxPill" style="font-family:var(--font-mono,monospace);font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:3px 10px;border-radius:4px">USD/INR: —</div>
         <div class="panel-badge" id="nyseCount">— STOCKS</div>
       </div>
     </div>
@@ -418,10 +418,10 @@
     </div>
     <!-- NYSE Summary footer -->
     <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:24px;flex-wrap:wrap;font-size:12px">
-      <div><span style="color:var(--text-muted)">Total Invested: </span><span id="nyseTotalInvested" style="font-family:'DM Mono',monospace">—</span></div>
-      <div><span style="color:var(--text-muted)">Current Value (USD): </span><span id="nyseTotalUSD" style="font-family:'DM Mono',monospace">—</span></div>
-      <div><span style="color:var(--text-muted)">Current Value (INR): </span><span id="nyseTotalINR" style="font-family:'DM Mono',monospace;font-weight:600">—</span></div>
-      <div><span style="color:var(--text-muted)">Overall Gain (USD): </span><span id="nyseTotalGain" style="font-family:'DM Mono',monospace">—</span></div>
+      <div><span style="color:var(--text-muted)">Total Invested: </span><span id="nyseTotalInvested" style="font-family:var(--font-mono,monospace)">—</span></div>
+      <div><span style="color:var(--text-muted)">Current Value (USD): </span><span id="nyseTotalUSD" style="font-family:var(--font-mono,monospace)">—</span></div>
+      <div><span style="color:var(--text-muted)">Current Value (INR): </span><span id="nyseTotalINR" style="font-family:var(--font-mono,monospace);font-weight:600">—</span></div>
+      <div><span style="color:var(--text-muted)">Overall Gain (USD): </span><span id="nyseTotalGain" style="font-family:var(--font-mono,monospace)">—</span></div>
     </div>
   </div>
 
@@ -506,7 +506,7 @@
 
       <!-- MF-only fields, shown when type = MF -->
       <div id="nf_mf_fields" style="display:none;grid-column:1/-1">
-        <div style="font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;padding-top:4px">MF Details (optional but recommended)</div>
+        <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;padding-top:4px">MF Details (optional but recommended)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
           <div class="modal-field">
             <label class="modal-label">Units</label>
@@ -552,6 +552,34 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="codeEditorModal" style="display:none;align-items:center;justify-content:center">
+  <div class="modal" style="width:520px;max-width:95vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">Fix Scheme Code</h2>
+      <button onclick="closeModal('codeEditorModal')" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <p id="codeEditorDesc" style="font-size:12px;color:var(--text-muted);margin-bottom:18px"></p>
+    <div style="background:rgba(224,123,106,0.08);border:1px solid rgba(224,123,106,0.25);border-radius:7px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--red)">
+      ⚠ NAV fetch failed for this fund. The scheme code may be incorrect, or the fund may have been merged/closed.
+    </div>
+    <div class="modal-label">Current Scheme Code</div>
+    <input class="modal-input" id="codeEditorCurrent" readonly style="font-size:12px;background:var(--surface);color:var(--text-muted);margin-bottom:14px">
+    <div class="modal-label">Search AMFI for correct fund</div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input class="modal-input" id="codeEditorSearch" placeholder="Type fund name to search..." style="font-size:12px;flex:1" onkeydown="if(event.key==='Enter')searchCodeEditor()">
+      <button class="btn-secondary" style="padding:8px 14px;font-size:12px;white-space:nowrap" onclick="searchCodeEditor()">Search</button>
+    </div>
+    <div id="codeEditorResults" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:7px;max-height:180px;overflow-y:auto;margin-bottom:14px"></div>
+    <div class="modal-label">New Scheme Code</div>
+    <input class="modal-input" id="codeEditorNew" placeholder="Selected from search or type manually" style="font-size:12px;margin-bottom:6px">
+    <div id="codeEditorStatus" style="font-size:11px;color:var(--text-muted);margin-bottom:16px;min-height:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal('codeEditorModal')">Cancel</button>
+      <button class="btn-primary" style="padding:8px 20px" onclick="applyCodeEdit()">Save & Retry NAV</button>
+    </div>
+  </div>
+</div>
+
 <!-- SOA UPLOAD REVIEW MODAL -->
 <div class="modal-overlay" id="soaReviewModal" style="display:none;align-items:flex-start;padding-top:40px;overflow-y:auto">
   <div class="modal" style="width:660px;max-width:95vw;max-height:85vh;overflow-y:auto">
@@ -560,13 +588,13 @@
       <button onclick="closeSOAModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px">✕</button>
     </div>
     <p id="soaModalDesc" style="font-size:12px;color:var(--text-muted);margin-bottom:18px">Reviewing extracted data — please verify before applying.</p>
-    <div id="soaParsingStatus" style="display:none;padding:16px;text-align:center;color:var(--text-muted);font-size:12px;font-family:'DM Mono',monospace">
+    <div id="soaParsingStatus" style="display:none;padding:16px;text-align:center;color:var(--text-muted);font-size:12px;font-family:var(--font-mono,monospace)">
       <div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>
       Extracting data from PDF...
     </div>
     <div id="soaCards"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:14px;border-top:1px solid var(--border)">
-      <div id="soaSummary" style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace"></div>
+      <div id="soaSummary" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono,monospace)"></div>
       <button class="btn-secondary" onclick="closeSOAModal()">Close</button>
     </div>
   </div>
@@ -708,8 +736,12 @@ let nyseData = NYSE_HOLDINGS.map(h=>({...h, livePrice:null, liveValue:null}));
 let usdInrRate = null;
 let nyseActiveFilter = 'all';
 
-let portfolioData = PORTFOLIO.map(h=>({...h}));
-let navCache = {}, lastRefreshed = new Date('2026-02-05'), activeFilter = 'all';
+// Load deleted IDs from localStorage to persist deletions across sessions
+const _deletedIds = JSON.parse(localStorage.getItem('bokaria_piyush_deleted')||'[]');
+let portfolioData = PORTFOLIO.map(h=>({...h})).filter(h=>!_deletedIds.includes(h.id));
+let navFetchFailed = [];   // codes that failed during last refresh
+let navRenamed = [];       // {id, oldName, newName} updated during last refresh
+let navCache = {}, lastRefreshed = new Date(), activeFilter = 'all';
 let sheetsConfig = null, sheetsConnected = false;
 let memberChartInst = null, categoryChartInst = null;
 
@@ -727,6 +759,10 @@ const fmtDate = d=>d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',yea
 const gainClass = v=>v>=0?'gain-text':'loss-text';
 const gainPrefix = v=>v>=0?'+':'';
 function holdingDays(pd){if(!pd)return null;return Math.floor((lastRefreshed-new Date(pd))/86400000);}
+function sanitize(str){
+  if(!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
 function fmtDays(d){if(d===null)return'—';if(d>=365){const y=Math.floor(d/365),m=Math.floor((d%365)/30);return y+'y'+(m>0?' '+m+'m':'');}if(d>=30)return Math.floor(d/30)+'m';return d+'d';}
 function getTagClass(h){if(h.type==='PMS'||h.type==='AIF')return'tag-aif';if(h.category==='Equity')return'tag-equity';if(h.category.includes('Debt'))return'tag-debt';return'tag-hybrid';}
 function getTypeLabel(h){return h.type==='PMS'?'PMS':h.type==='AIF'?'AIF':h.category;}
@@ -763,7 +799,7 @@ function portfolioTotals(){
   const nyseI=nyseData.reduce((a,h)=>a+(h.qty*h.unitCost*fx),0);
   const nyseC=nyseData.reduce((a,h)=>a+((h.liveValue||h.qty*h.unitCost)*fx),0);
   const i=mfI+nyseI, c=mfC+nyseC;
-  return{invested:i,current:c,gain:c-i,gainPct:((c-i)/i)*100};
+  return{invested:i,current:c,gain:c-i,gainPct:i>0?((c-i)/i)*100:0};
 }
 function categoryTotals(){
   const fx=usdInrRate||84.5;
@@ -787,10 +823,24 @@ function fetchWithTimeout(url, options={}, ms=12000){
 
 async function fetchSingleNAV(code){
   try{
-    const r=await fetch(`https://api.mfapi.in/mf/${code}/latest`);
+    const r=await fetchWithTimeout(`https://api.mfapi.in/mf/${code}/latest`);
     if(!r.ok)return null;
     const d=await r.json();
-    if(d.data?.length)return{nav:parseFloat(d.data[0].nav),date:d.data[0].date,schemeName:d.meta?.scheme_name||''};
+    if(!d.data?.length)return null;
+    const result={nav:parseFloat(d.data[0].nav),date:d.data[0].date,schemeName:d.meta?.scheme_name||''};
+    // Inline name-change detection — no separate hygiene pass needed
+    if(result.schemeName){
+      portfolioData.filter(h=>String(h.schemeCode)===String(code)).forEach(h=>{
+        if(result.schemeName !== (h.originalName||h.fund||'')){
+          if(h.currentName !== result.schemeName){
+            const oldName = h.currentName||h.originalName||h.fund||'';
+            h.currentName = result.schemeName;
+            navRenamed.push({id:h.id, fund:h.originalName||h.fund, oldName, newName:result.schemeName});
+          }
+        }
+      });
+    }
+    return result;
   }catch(e){}
   return null;
 }
@@ -798,6 +848,7 @@ async function refreshNAVs(){
   const btn=document.getElementById('refreshBtn'),icon=document.getElementById('refreshIcon');
   const ov=document.getElementById('loadingOverlay'),st=document.getElementById('loadingStatus');
   btn.disabled=true;icon.classList.add('spin');ov.classList.add('visible');
+  try{
 
   // 1. Re-sync from Google Sheets first (picks up latest PMS/AIF values and new holdings)
   if(sheetsConnected){
@@ -806,52 +857,62 @@ async function refreshNAVs(){
     await loadFromSheets();
   }
 
-  // 2. Fetch USD/INR rate (only if NYSE holdings exist)
-  if(nyseData.length > 0){
-    document.getElementById('loadingText').textContent='Fetching exchange rate';
-    st.textContent='Getting USD/INR rate...';
-    await fetchUSDINR();
-  }
+  // 2. Fetch USD/INR rate
+  document.getElementById('loadingText').textContent='Fetching exchange rate';
+  st.textContent='Getting USD/INR rate...';
+  await fetchUSDINR();
 
   // 3. Fetch MF NAVs
+  navFetchFailed = []; navRenamed = []; // reset tracking
   document.getElementById('loadingText').textContent='Fetching MF NAVs';
   const codes=[...new Set(portfolioData.filter(h=>h.schemeCode).map(h=>h.schemeCode))];
   for(const code of codes){
     st.textContent='Fetching '+(MF_NAMES[code]||code)+'...';
     const r=await fetchSingleNAV(code);
-    if(r){navCache[code]=r;portfolioData.forEach(h=>{if(h.schemeCode===code){h.currentNav=r.nav;h.currentValue=h.units*r.nav;h.navDate=r.date;}});}
+    if(r){
+      navCache[code]=r;
+      portfolioData.forEach(h=>{
+        if(String(h.schemeCode)===String(code)){
+          h.currentNav=r.nav;
+          h.navDate=r.date;
+          // Only update currentValue from NAV if this is an MF with valid units
+          if(h.type==='MF' && h.units && h.units>0){
+            h.currentValue=h.units*r.nav;
+          }
+          // PMS/AIF values are never overwritten by NAV fetch
+        }
+      });
+    } else {
+      navFetchFailed.push(code); // track failed fetches
+    }
     await new Promise(x=>setTimeout(x,80));
   }
 
-  // 3. Fetch NYSE stock prices (only if holdings exist)
-  if(nyseData.length > 0){
-    document.getElementById('loadingText').textContent='Fetching NYSE prices';
-    const symbols=[...new Set(nyseData.map(h=>h.symbol))];
-    for(const sym of symbols){
-      st.textContent='Fetching '+sym+'...';
-      await fetchStockPrice(sym);
-      await new Promise(x=>setTimeout(x,120));
-    }
+  // 3. Fetch NYSE stock prices
+  document.getElementById('loadingText').textContent='Fetching NYSE prices';
+  const symbols=[...new Set(nyseData.map(h=>h.symbol))];
+  for(const sym of symbols){
+    st.textContent='Fetching '+sym+'...';
+    await fetchStockPrice(sym);
+    await new Promise(x=>setTimeout(x,120));
   }
 
   lastRefreshed=new Date();st.textContent='Done!';
 
-  // 4. Run scheme code hygiene check (uses navCache — instant)
-  document.getElementById('loadingText').textContent='Almost done';
-  st.textContent='Running hygiene checks...';
-  document.getElementById('updateLog').innerHTML = '';
-  runHygieneCheck();
-
-  // 5. Write full portfolio snapshot to Sheets
+  // 4. Write full portfolio snapshot to Sheets
   if(sheetsConnected){
     document.getElementById('loadingText').textContent='Saving to Sheets';
     st.textContent='Saving snapshot to Google Sheets...';
     await writePortfolioSnapshot();
   }
 
-  await new Promise(x=>setTimeout(x,300));
-  ov.classList.remove('visible');btn.disabled=false;icon.classList.remove('spin');
-  renderAll();
+  }catch(e){
+    console.error('refreshNAVs error:',e);
+  }finally{
+    await new Promise(x=>setTimeout(x,300));
+    ov.classList.remove('visible');btn.disabled=false;icon.classList.remove('spin');
+    renderAll();
+  }
 }
 
 // ═══════════════════════════════════
@@ -971,7 +1032,7 @@ async function writePortfolioSnapshot(){
 async function fetchUSDINR(){
   try{
     // Use exchangerate-api (free, no key needed for this endpoint)
-    const r=await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    const r=await fetchWithTimeout('https://api.exchangerate-api.com/v4/latest/USD');
     if(!r.ok)throw new Error('FX fetch failed');
     const d=await r.json();
     usdInrRate=d.rates?.INR||null;
@@ -982,7 +1043,7 @@ async function fetchUSDINR(){
   }catch(e){
     // Fallback to a reasonable rate if API fails
     if(!usdInrRate) usdInrRate=84.5;
-    document.getElementById('fxPill').textContent=`USD/INR: ₹${usdInrRate.toFixed(2)} (cached)`;
+    const _fp2=document.getElementById('fxPill');if(_fp2)_fp2.textContent=`USD/INR: ₹${usdInrRate.toFixed(2)} (cached)`;
   }
 }
 
@@ -991,7 +1052,7 @@ const FINNHUB_KEY = 'd7giaahr01qmqj45f3ngd7giaahr01qmqj45f3o0';
 async function fetchStockPrice(symbol){
   try{
     const url=`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`;
-    const r=await fetch(url);
+    const r=await fetchWithTimeout(url);
     if(!r.ok)return;
     const d=await r.json();
     const price=d?.c; // 'c' = current price in Finnhub
@@ -1040,17 +1101,17 @@ function renderNYSE(){
         <div style="font-size:11px;color:var(--text-muted)">${h.name}</div>
       </td>
       <td><span class="member-dot" style="background:${meta?meta.color:'#666'}"></span><span style="font-size:12px">${shortName(h.investor)}</span></td>
-      <td><span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${h.platform}</span></td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px">${h.qty.toFixed(4)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px">$${h.unitCost.toFixed(2)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px">
+      <td><span style="font-size:11px;font-family:var(--font-mono,monospace);color:var(--text-muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${h.platform}</span></td>
+      <td style="text-align:right;font-family:var(--font-mono,monospace);font-size:12px">${h.qty.toFixed(4)}</td>
+      <td style="text-align:right;font-family:var(--font-mono,monospace);font-size:12px">$${h.unitCost.toFixed(2)}</td>
+      <td style="text-align:right;font-family:var(--font-mono,monospace);font-size:12px">
         ${h.livePrice?`<span style="color:var(--green)">$${h.livePrice.toFixed(2)}</span><div class="status-dot live-dot" style="display:inline-block;margin-left:4px"></div>`:'<span style="color:var(--text-dim)">—</span>'}
       </td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px">$${value.toFixed(2)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:600">₹${(valueINR/100000).toFixed(2)} L</td>
+      <td style="text-align:right;font-family:var(--font-mono,monospace);font-size:12px">$${value.toFixed(2)}</td>
+      <td style="text-align:right;font-family:var(--font-mono,monospace);font-size:12px;font-weight:600">₹${(valueINR/100000).toFixed(2)} L</td>
       <td style="text-align:right">
-        <div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(gain)}$${Math.abs(gain).toFixed(2)}</div>
-        <div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div>
+        <div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(gain)}$${Math.abs(gain).toFixed(2)}</div>
+        <div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1074,7 +1135,7 @@ function filterNYSE(member,btnEl){
 // ═══════════════════════════════════
 // GOOGLE SHEETS
 // ═══════════════════════════════════
-const LS_KEY='bokaria_sheets_v2';
+const LS_KEY='bokaria_piyush_sheets_v2';
 // ── Pre-configured credentials — pre-fill for all users ──
 const DEFAULT_SHEET_ID='1EH3OKMAo_PZdK0DuplRvUH7J6IIaWOcOf5Tmlfglon8';
 const DEFAULT_CLIENT_ID='54722716336-puhqj8e67mf44jbi9unpm2lcgplos829.apps.googleusercontent.com';
@@ -1150,7 +1211,7 @@ async function loadFromSheets(){
   try{
     // Load PMS/AIF value updates
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/pms_aif_values!A2:H500`;
-    const r=await fetch(url,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
+    const r=await fetchWithTimeout(url,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
     if(!r.ok){
       if(r.status===401){updateSheetsPill('error','Sheets: Session expired');sheetsConnected=false;}
       return;
@@ -1173,7 +1234,10 @@ async function loadFromSheets(){
         h = portfolioData.find(x=>x.id===idNum);
       }
       if(!h && fundRaw){
-        h = portfolioData.find(x=>x.fund===fundRaw||(x.type==='PMS'||x.type==='AIF')&&x.fund.includes(fundRaw));
+        // Exact name match first, then strict PMS/AIF match by ID prefix only
+        h = portfolioData.find(x=>x.fund===fundRaw||(x.originalName||'')===fundRaw);
+        // If still no match and we have an ID number, log warning but don't guess
+        if(!h && !isNaN(idNum) && idNum>0) console.warn('loadFromSheets: ID',idNum,'not found in portfolio — skipping row');
       }
 
       if(h){
@@ -1188,7 +1252,7 @@ async function loadFromSheets(){
 
     // Load new holdings added via the app — read full 18 columns A:R
     const nhUrl=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/new_holdings!A2:R1000`;
-    const nhR=await fetch(nhUrl,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
+    const nhR=await fetchWithTimeout(nhUrl,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
     if(nhR.ok){
       const nhData=await nhR.json();
       const nhRows=nhData.values||[];
@@ -1223,7 +1287,7 @@ async function loadFromSheets(){
   }
 }
 
-async function saveToSheets(holdingId, investedToDate, value, asOfDate, updatedBy, notes){
+async function saveToSheets(holdingId, investedToDate, value, asOfDate, updatedBy, notes, _retryCount=0){
   if(!sheetsConfig?.accessToken) return false;
   sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
   if(!sheetsConfig.sheetId) return false;
@@ -1231,14 +1295,15 @@ async function saveToSheets(holdingId, investedToDate, value, asOfDate, updatedB
   try{
     // Read existing rows to find if this holding already has a row
     const readUrl=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/pms_aif_values!A2:A500`;
-    const rdRes=await fetch(readUrl,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
+    const rdRes=await fetchWithTimeout(readUrl,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
     if(rdRes.status===401){
       // Try silent token refresh first
       updateSheetsPill('error','Sheets: Refreshing session...');
       const refreshed = await silentTokenRefresh();
       if(refreshed){
         // Retry the save with new token — recursive call
-        return await saveToSheets(holdingId, investedToDate, value, asOfDate, updatedBy, notes);
+        if(_retryCount>0){sheetsConnected=false;updateSheetsPill('error','Sheets: Session expired');return false;}
+        return await saveToSheets(holdingId, investedToDate, value, asOfDate, updatedBy, notes, 1);
       }
       sheetsConnected=false;
       updateSheetsPill('error','Sheets: Session expired');
@@ -1261,7 +1326,7 @@ async function saveToSheets(holdingId, investedToDate, value, asOfDate, updatedB
       writeUrl=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/pms_aif_values!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
       method='POST';
     }
-    const wr=await fetch(writeUrl,{method,headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
+    const wr=await fetchWithTimeout(writeUrl,{method,headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
     if(!wr.ok){
       const errBody=await wr.json().catch(()=>({}));
       console.error('saveToSheets failed:', wr.status, JSON.stringify(errBody));
@@ -1323,15 +1388,15 @@ function renderManualUpdates(){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Invested to Date (₹)</div>
+          <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Invested to Date (₹)</div>
           <input class="manual-input" style="width:100%" id="inv_${h.id}" type="number" value="${Math.round(h.invested||0)}" placeholder="Amount called">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Current Value (₹)</div>
+          <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Current Value (₹)</div>
           <input class="manual-input" style="width:100%" id="val_${h.id}" type="number" value="${Math.round(h.currentValue||0)}" placeholder="Market value">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">As Of Date</div>
+          <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">As Of Date</div>
           <input class="manual-input" style="width:100%;font-size:11px;padding:4px 7px" id="date_${h.id}" type="date" value="${h.soaDate?toInputDate(h.soaDate):''}">
         </div>
       </div>`;
@@ -1410,7 +1475,7 @@ async function searchSchemeCode(){
 
   try {
     const q = encodeURIComponent(fundName);
-    const res = await fetch(`https://api.mfapi.in/mf/search?q=${q}`);
+    const res = await fetchWithTimeout(`https://api.mfapi.in/mf/search?q=${q}`);
     if(!res.ok) throw new Error('Search failed');
     const results = await res.json();
 
@@ -1429,7 +1494,7 @@ async function searchSchemeCode(){
         onmouseover="this.style.background='var(--surface2)'"
         onmouseout="this.style.background='transparent'">
         <div style="font-size:12px;font-weight:500">${r.schemeName}</div>
-        <div style="font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;margin-top:2px">Code: ${r.schemeCode}</div>
+        <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono,monospace);margin-top:2px">Code: ${r.schemeCode}</div>
       </div>
     `).join('') + (results.length > 6 ? `<div style="padding:8px 14px;font-size:11px;color:var(--text-dim)">${results.length - 6} more results — refine the fund name to narrow down</div>` : '');
 
@@ -1450,7 +1515,7 @@ async function selectSchemeCode(code, name, el){
 
   // Fetch and pre-fill current NAV
   try {
-    const res = await fetch(`https://api.mfapi.in/mf/${code}/latest`);
+    const res = await fetchWithTimeout(`https://api.mfapi.in/mf/${code}/latest`);
     const data = await res.json();
     if(data.data?.length){
       const nav = data.data[0].nav;
@@ -1520,7 +1585,7 @@ async function addNewFund(){
   const asOfDateRaw= document.getElementById('nf_asOfDate').value;
   const asOfDate   = asOfDateRaw ? fmtDate(new Date(asOfDateRaw)) : fmtDate(new Date());
 
-  const newId = Math.max(...portfolioData.map(h=>h.id)) + 1;
+  const newId = portfolioData.length > 0 ? Math.max(...portfolioData.map(h=>h.id)) + 1 : 1;
 
   // Get scheme code and official name from search result
   const schemeCode = document.getElementById('nf_schemeCode').value.trim()||null;
@@ -1580,7 +1645,29 @@ function renderSummary(){
   document.getElementById('totalGainAmt').className='stat-sub '+(t.gain>=0?'gain':'loss');
   document.getElementById('totalReturn').textContent=gainPrefix(t.gainPct)+t.gainPct.toFixed(1)+'%';
   document.getElementById('totalReturn').className='stat-value '+gainClass(t.gain);
-  document.getElementById('navCoverage').textContent=portfolioData.filter(h=>h.schemeCode).length+' live NAVs';
+  // Enhanced Data Freshness card
+  const mfHoldings = portfolioData.filter(h=>h.type==='MF' && h.schemeCode);
+  const liveCount  = mfHoldings.filter(h=>navCache[h.schemeCode]).length;
+  const failCount  = navFetchFailed.length;
+  const renameCount= navRenamed.length;
+
+  if(failCount > 0){
+    document.getElementById('navCoverage').textContent = liveCount+' / '+(liveCount+failCount)+' live';
+    document.getElementById('navCoverage').className   = 'stat-value loss';
+  } else if(renameCount > 0){
+    document.getElementById('navCoverage').textContent = liveCount+' live NAVs';
+    document.getElementById('navCoverage').className   = 'stat-value';
+  } else {
+    document.getElementById('navCoverage').textContent = liveCount > 0 ? liveCount+' live NAVs' : '—';
+    document.getElementById('navCoverage').className   = 'stat-value';
+  }
+
+  // Build status message
+  let freshMsgs = [];
+  if(failCount > 0) freshMsgs.push(`<span style="color:var(--red);cursor:pointer" onclick="showFreshDetail()">⚠ ${failCount} fetch failed — click to fix</span>`);
+  if(renameCount > 0) freshMsgs.push(`<span style="color:var(--accent)">${renameCount} fund(s) renamed</span>`);
+  if(failCount===0 && renameCount===0 && liveCount>0) freshMsgs.push('All codes verified ✓');
+  document.getElementById('sheetsSyncStatus').innerHTML = freshMsgs.join(' &nbsp;·&nbsp; ') || 'Hit Refresh NAVs to verify';
   // Update holding count in subtitle and summary card dynamically
   const total=portfolioData.length;
   document.querySelector('.header-left .subtitle').innerHTML=`${total} HOLDINGS &nbsp;·&nbsp; 5 INVESTORS &nbsp;·&nbsp; AS AT <span id="headerDate">${fmtDate(lastRefreshed).toUpperCase()}</span>`;
@@ -1594,7 +1681,7 @@ function renderMemberCards(){
     card.onclick=()=>filterTable(name,null);
     card.innerHTML=`<div class="member-header"><div class="member-avatar" style="background:${meta.color}">${meta.short}</div><div><div class="member-name">${shortName(name)}</div><div class="member-tag">${meta.label} · ${t.count} holdings</div></div></div>
     <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Current Value</div>
-    <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:${meta.color}">${fmtCr(t.current)}</div>
+    <div style="font-size:14px;font-weight:600;font-family:var(--font-mono,monospace);color:${meta.color}">${fmtCr(t.current)}</div>
     <div style="font-size:11px;margin-top:1px" class="${gainClass(t.gain)}">${gainPrefix(t.gain)}${fmtL(t.gain)} (${gainPrefix(t.gainPct)}${t.gainPct.toFixed(1)}%)</div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px">Invested: ${fmtCr(t.invested)}</div>`;
     container.appendChild(card);
@@ -1634,12 +1721,12 @@ function renderTable(){
     const meta=MEMBER_META[h.investor],days=holdingDays(h.purchaseDate),isAuto=h.type==='MF'&&h.schemeCode;
     const cagr=calcCAGR(h.invested, h.currentValue||0, days);
     const cagrStr=cagr!==null
-      ? `<span class="${gainClass(cagr)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
+      ? `<span class="${gainClass(cagr)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
       : '<span style="color:var(--text-dim)">—</span>';
 
     // NAV cell — show currentNav for MFs, "—" for PMS/AIF
     const navStr = h.currentNav
-      ? `<span style="font-family:'DM Mono',monospace;font-size:12px">₹${h.currentNav.toFixed(4)}</span>
+      ? `<span style="font-family:var(--font-mono,monospace);font-size:12px">₹${h.currentNav.toFixed(4)}</span>
          ${h.navDate?`<div style="font-size:10px;color:var(--text-dim)">${h.navDate}</div>`:''}`
       : '<span style="color:var(--text-dim)">—</span>';
 
@@ -1652,7 +1739,7 @@ function renderTable(){
       </td>
       <td>
         ${hasNameChange
-          ? `<div class="fund-name" style="color:var(--accent2)">${h.currentName}</div><span style="font-size:9px;color:var(--accent);font-family:'DM Mono',monospace;background:rgba(200,169,110,0.12);padding:1px 5px;border-radius:3px;border:1px solid rgba(200,169,110,0.3)">RENAMED</span>`
+          ? `<div class="fund-name" style="color:var(--accent2)">${h.currentName}</div><span style="font-size:9px;color:var(--accent);font-family:var(--font-mono,monospace);background:rgba(200,169,110,0.12);padding:1px 5px;border-radius:3px;border:1px solid rgba(200,169,110,0.3)">RENAMED</span>`
           : `<div style="font-size:12px;color:var(--text-dim)">—</div>`
         }
       </td>
@@ -1661,8 +1748,8 @@ function renderTable(){
       <td style="text-align:right"><span class="amount">${fmtExact(h.invested)}</span></td>
       <td style="text-align:right"><span class="amount">${fmtExact(h.currentValue||0)}</span>${h.soaDate?`<div style="font-size:10px;color:var(--text-dim)">${h.soaDate}</div>`:''}</td>
       <td style="text-align:right">${navStr}</td>
-      <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
-      <td style="text-align:right"><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
+      <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
+      <td style="text-align:right"><span style="font-family:var(--font-mono,monospace);font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
       <td style="text-align:right">${cagrStr}</td>
       <td style="text-align:center">${isAuto?'<span class="status-dot live-dot"></span><span style="font-size:11px;color:var(--green)">Live</span>':'<span class="status-dot manual-dot"></span><span style="font-size:11px;color:var(--accent)">SOA</span>'}</td>
       <td style="text-align:center"><button class="delete-btn" onclick="confirmDelete(${h.id})" title="Remove fund">✕</button></td>`;
@@ -1678,8 +1765,13 @@ async function confirmDelete(id){
   const confirmed = window.confirm(`Remove "${h.originalName||h.fund||""}" (${shortName(h.investor)}) from the dashboard?\n\nThis will remove it from the current view. A record will be saved to Google Sheets for audit purposes.`);
   if(!confirmed) return;
 
-  // Remove from in-memory data
+  // Remove from in-memory data + persist deletion in localStorage
   portfolioData = portfolioData.filter(x=>x.id!==id);
+  try{
+    const dels = JSON.parse(localStorage.getItem('bokaria_piyush_deleted')||'[]');
+    if(!dels.includes(id)) dels.push(id);
+    localStorage.setItem('bokaria_piyush_deleted', JSON.stringify(dels));
+  }catch(e){}
   lastRefreshed = new Date();
 
   // Log deletion to Sheets
@@ -1699,7 +1791,7 @@ async function logDeletionToSheets(h){
       fmtDate(new Date()), 'deleted'
     ]];
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/deleted_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
+    const r=await fetchWithTimeout(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
     return r.ok;
   }catch(e){console.error(e);return false;}
 }
@@ -1777,30 +1869,151 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-async function saveNewHoldingToSheets(h, notes=''){
-  if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId)return false;
+let codeEditorTargetId = null;
+
+function openCodeEditor(holdingId){
+  const h = portfolioData.find(x=>x.id===holdingId);
+  if(!h) return;
+  codeEditorTargetId = holdingId;
+  document.getElementById('codeEditorDesc').textContent =
+    `Fixing: ${h.originalName||h.fund} (${shortName(h.investor)})`;
+  document.getElementById('codeEditorCurrent').value = h.schemeCode||'(none)';
+  document.getElementById('codeEditorNew').value = '';
+  document.getElementById('codeEditorResults').style.display='none';
+  document.getElementById('codeEditorStatus').textContent='';
+  document.getElementById('codeEditorSearch').value = (h.originalName||h.fund||'').slice(0,50);
+  document.getElementById('codeEditorModal').style.display='flex';
+}
+
+async function searchCodeEditor(){
+  const q = document.getElementById('codeEditorSearch').value.trim();
+  if(!q) return;
+  const resultsEl = document.getElementById('codeEditorResults');
+  resultsEl.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:11px">Searching AMFI...</div>';
+  resultsEl.style.display = 'block';
   try{
-    // Columns: id|investor|fund|house|folio|type|category|invested|units|navCost|currentValue|purchaseDate|asOfDate|addedOn|schemeCode|originalName|currentName|notes
-    const vals=[[
-      h.id, h.investor, h.fund, h.house||'', h.folio||'',
-      h.type, h.category, h.invested||0, h.units||'',
-      h.navCost||'', h.currentValue||0, h.purchaseDate||'',
-      h.soaDate||'', fmtDate(new Date()), h.schemeCode||'',
-      h.originalName||h.fund, h.currentName||h.fund, notes
-    ]];
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/new_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
-    if(!r.ok){
-      const err=await r.json().catch(()=>({}));
-      console.error('Sheets save error:', JSON.stringify(err));
-      alert('Google Sheets save failed: '+(err?.error?.message||r.status)+'\nPlease check your Sheets connection and try again.');
-      return false;
-    }
-    return true;
+    const r = await fetchWithTimeout(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(q.slice(0,50))}`,{},8000);
+    const data = await r.json();
+    if(!data?.length){ resultsEl.innerHTML='<div style="padding:10px;color:var(--red);font-size:11px">No results found</div>'; return; }
+    resultsEl.innerHTML = data.slice(0,8).map(d=>`
+      <div onclick="selectCodeResult('${d.schemeCode}','${d.schemeName.replace(/'/g,'`')}')"
+        style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:11px"
+        onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        <span style="font-family:var(--font-mono,monospace);color:var(--accent);margin-right:8px">${d.schemeCode}</span>
+        <span style="color:var(--text)">${d.schemeName}</span>
+      </div>`).join('');
   }catch(e){
-    console.error('saveNewHoldingToSheets exception:',e);
-    alert('Google Sheets save error: '+e.message);
-    return false;
+    resultsEl.innerHTML='<div style="padding:10px;color:var(--red);font-size:11px">Search failed — check connection</div>';
+  }
+}
+
+function selectCodeResult(code, name){
+  document.getElementById('codeEditorNew').value = code;
+  document.getElementById('codeEditorStatus').innerHTML =
+    `<span style="color:var(--green)">✓ Selected: ${code} — ${name.slice(0,60)}</span>`;
+  document.getElementById('codeEditorResults').style.display='none';
+}
+
+async function applyCodeEdit(){
+  const newCode = document.getElementById('codeEditorNew').value.trim();
+  const statusEl = document.getElementById('codeEditorStatus');
+  if(!newCode){ statusEl.innerHTML='<span style="color:var(--red)">Enter or select a scheme code first</span>'; return; }
+
+  const h = portfolioData.find(x=>x.id===codeEditorTargetId);
+  if(!h){ closeModal('codeEditorModal'); return; }
+
+  statusEl.innerHTML='<span style="color:var(--accent)">Verifying code with AMFI...</span>';
+
+  // Verify the new code works before saving
+  const result = await fetchSingleNAV(newCode);
+  if(!result){
+    statusEl.innerHTML='<span style="color:var(--red)">⚠ Code '+newCode+' returned no NAV from AMFI. Please verify it is correct.</span>';
+    return;
+  }
+
+  // Code works — apply it
+  const oldCode = h.schemeCode;
+  h.schemeCode = newCode;
+  h.currentNav = result.nav;
+  h.navDate = result.date;
+  if(h.type==='MF' && h.units) h.currentValue = h.units * result.nav;
+  if(result.schemeName) h.currentName = result.schemeName;
+
+  // Remove from failed list
+  navFetchFailed = navFetchFailed.filter(c=>String(c)!==String(oldCode));
+  navCache[newCode] = result;
+
+  // Save corrected code to Sheets new_holdings if connected
+  if(sheetsConnected){
+    statusEl.innerHTML='<span style="color:var(--accent)">Saving to Sheets...</span>';
+    await saveNewHoldingToSheets(h, `Scheme code corrected from ${oldCode} to ${newCode}`);
+  }
+
+  statusEl.innerHTML=`<span style="color:var(--green)">✓ Code updated · NAV: ₹${result.nav.toFixed(4)} (${result.date})</span>`;
+  setTimeout(()=>{ closeModal('codeEditorModal'); renderAll(); }, 1200);
+}
+
+// ─── Show detail popup of failed/renamed funds ───
+function closeFreshDetail(){
+  const p=document.getElementById('freshDetailPanel');
+  if(p)p.remove();
+}
+function showFreshDetail(){
+  // Show fresh detail panel below the Data Freshness card
+  let existing = document.getElementById('freshDetailPanel');
+  if(existing){ existing.remove(); return; } // toggle off if already open
+
+  const panel = document.createElement('div');
+  panel.id = 'freshDetailPanel';
+  panel.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin:0 40px 20px;max-width:1600px';
+
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    + '<div style="font-size:13px;font-weight:600">Data Freshness Detail</div>'
+    + '<button onclick="closeFreshDetail()" '
+    + 'style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">✕</button>'
+    + '</div>';
+
+  if(navFetchFailed.length){
+    html += '<div style="font-size:11px;font-family:var(--font-mono,monospace);color:var(--red);margin-bottom:8px">NAV FETCH FAILED — ' + navFetchFailed.length + ' FUND(S)</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">';
+    navFetchFailed.forEach(code=>{
+      const h = portfolioData.find(x=>String(x.schemeCode)===String(code));
+      const name = h ? (h.originalName||h.fund||'Unknown') : 'Unknown';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(224,123,106,0.07);border:1px solid rgba(224,123,106,0.2);border-radius:6px;padding:8px 12px">'
+        + '<div><div style="font-size:12px;font-weight:600">' + name + '</div>'
+        + '<div style="font-size:10px;font-family:var(--font-mono,monospace);color:var(--text-muted);margin-top:2px">Code: ' + code + '</div></div>'
+        + '<button onclick="openCodeEditor(' + (h?h.id:0) + ');closeFreshDetail()" '
+        + 'style="background:var(--accent);color:#0d0f14;border:none;padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">Fix Code ✎</button>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  if(navRenamed.length){
+    html += '<div style="font-size:11px;font-family:var(--font-mono,monospace);color:var(--accent);margin-bottom:8px">FUND NAMES AUTO-UPDATED — ' + navRenamed.length + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+    navRenamed.forEach(r=>{
+      html += '<div style="background:rgba(200,169,110,0.07);border:1px solid rgba(200,169,110,0.2);border-radius:6px;padding:8px 12px">'
+        + '<div style="font-size:12px;font-weight:600">' + (r.fund||'') + '</div>'
+        + '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">↪ Now: <span style="color:var(--accent2)">' + r.newName + '</span></div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  if(!navFetchFailed.length && !navRenamed.length){
+    html += '<div style="font-size:12px;color:var(--green);text-align:center;padding:12px">✓ All scheme codes fetched successfully. No issues found.</div>';
+  }
+
+  panel.innerHTML = html;
+
+  // Insert after the summary grid
+  const main = document.querySelector('main.main') || document.querySelector('main');
+  const summaryGrid = document.querySelector('.summary-grid');
+  if(summaryGrid && summaryGrid.nextSibling){
+    main.insertBefore(panel, summaryGrid.nextSibling);
+  } else if(main){
+    main.prepend(panel);
   }
 }
 
@@ -1835,7 +2048,7 @@ function renderMemberCards(){
     card.onclick=()=>filterTable(name,null);
     card.innerHTML=`<div class="member-header"><div class="member-avatar" style="background:${meta.color}">${meta.short}</div><div><div class="member-name">${shortName(name)}</div><div class="member-tag">${meta.label} · ${t.count} holdings</div></div></div>
     <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Current Value</div>
-    <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:${meta.color}">${fmtCr(t.current)}</div>
+    <div style="font-size:14px;font-weight:600;font-family:var(--font-mono,monospace);color:${meta.color}">${fmtCr(t.current)}</div>
     <div style="font-size:11px;margin-top:1px" class="${gainClass(t.gain)}">${gainPrefix(t.gain)}${fmtL(t.gain)} (${gainPrefix(t.gainPct)}${t.gainPct.toFixed(1)}%)</div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px">Invested: ${fmtCr(t.invested)}</div>`;
     container.appendChild(card);
@@ -1875,12 +2088,12 @@ function renderTable(){
     const meta=MEMBER_META[h.investor],days=holdingDays(h.purchaseDate),isAuto=h.type==='MF'&&h.schemeCode;
     const cagr=calcCAGR(h.invested, h.currentValue||0, days);
     const cagrStr=cagr!==null
-      ? `<span class="${gainClass(cagr)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
+      ? `<span class="${gainClass(cagr)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
       : '<span style="color:var(--text-dim)">—</span>';
 
     // NAV cell — show currentNav for MFs, "—" for PMS/AIF
     const navStr = h.currentNav
-      ? `<span style="font-family:'DM Mono',monospace;font-size:12px">₹${h.currentNav.toFixed(4)}</span>
+      ? `<span style="font-family:var(--font-mono,monospace);font-size:12px">₹${h.currentNav.toFixed(4)}</span>
          ${h.navDate?`<div style="font-size:10px;color:var(--text-dim)">${h.navDate}</div>`:''}`
       : '<span style="color:var(--text-dim)">—</span>';
 
@@ -1893,7 +2106,7 @@ function renderTable(){
       </td>
       <td>
         ${hasNameChange
-          ? `<div class="fund-name" style="color:var(--accent2)">${h.currentName}</div><span style="font-size:9px;color:var(--accent);font-family:'DM Mono',monospace;background:rgba(200,169,110,0.12);padding:1px 5px;border-radius:3px;border:1px solid rgba(200,169,110,0.3)">RENAMED</span>`
+          ? `<div class="fund-name" style="color:var(--accent2)">${h.currentName}</div><span style="font-size:9px;color:var(--accent);font-family:var(--font-mono,monospace);background:rgba(200,169,110,0.12);padding:1px 5px;border-radius:3px;border:1px solid rgba(200,169,110,0.3)">RENAMED</span>`
           : `<div style="font-size:12px;color:var(--text-dim)">—</div>`
         }
       </td>
@@ -1902,8 +2115,8 @@ function renderTable(){
       <td style="text-align:right"><span class="amount">${fmtExact(h.invested)}</span></td>
       <td style="text-align:right"><span class="amount">${fmtExact(h.currentValue||0)}</span>${h.soaDate?`<div style="font-size:10px;color:var(--text-dim)">${h.soaDate}</div>`:''}</td>
       <td style="text-align:right">${navStr}</td>
-      <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:'DM Mono',monospace;font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
-      <td style="text-align:right"><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
+      <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
+      <td style="text-align:right"><span style="font-family:var(--font-mono,monospace);font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
       <td style="text-align:right">${cagrStr}</td>
       <td style="text-align:center">${isAuto?'<span class="status-dot live-dot"></span><span style="font-size:11px;color:var(--green)">Live</span>':'<span class="status-dot manual-dot"></span><span style="font-size:11px;color:var(--accent)">SOA</span>'}</td>
       <td style="text-align:center"><button class="delete-btn" onclick="confirmDelete(${h.id})" title="Remove fund">✕</button></td>`;
@@ -1919,8 +2132,13 @@ async function confirmDelete(id){
   const confirmed = window.confirm(`Remove "${h.fund}" (${shortName(h.investor)}) from the dashboard?\n\nThis will remove it from the current view. A record will be saved to Google Sheets for audit purposes.`);
   if(!confirmed) return;
 
-  // Remove from in-memory data
+  // Remove from in-memory data + persist deletion in localStorage
   portfolioData = portfolioData.filter(x=>x.id!==id);
+  try{
+    const dels = JSON.parse(localStorage.getItem('bokaria_piyush_deleted')||'[]');
+    if(!dels.includes(id)) dels.push(id);
+    localStorage.setItem('bokaria_piyush_deleted', JSON.stringify(dels));
+  }catch(e){}
   lastRefreshed = new Date();
 
   // Log deletion to Sheets
@@ -1938,7 +2156,7 @@ async function logDeletionToSheets(h){
       fmtDate(new Date()), 'deleted'
     ]];
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/deleted_holdings!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
+    const r=await fetchWithTimeout(url,{method:'POST',headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({values:vals})});
     return r.ok;
   }catch(e){console.error(e);return false;}
 }
@@ -1968,69 +2186,7 @@ function filterTable(member,btnEl){
 // ═══════════════════════════════════
 // SCHEME CODE HYGIENE CHECK
 // ═══════════════════════════════════
-function runHygieneCheck(){
-  // Uses navCache already populated during Refresh NAVs — zero extra API calls
-  const container = document.getElementById('updateLog');
-  const seen = new Set();
-  let issues = 0, renamed = 0, checked = 0;
 
-  portfolioData.filter(h=>h.schemeCode).forEach(h=>{
-    const code = String(h.schemeCode);
-    const name = h.originalName||h.fund||'';
-    if(seen.has(code)) return;
-    seen.add(code);
-    checked++;
-
-    const cached = navCache[code];
-
-    // Code not found in navCache — fetch failed during NAV refresh
-    if(!cached){
-      addHygieneLog(container,'error',`⚠ ${name.slice(0,45)} — NAV fetch failed. Verify scheme code ${code}.`);
-      issues++;
-      return;
-    }
-
-    // Stale NAV check — more than 10 calendar days old
-    if(cached.date){
-      const parts = cached.date.split('-'); // dd-mm-yyyy
-      const navDt = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-      const ageDays = Math.floor((new Date()-navDt)/86400000);
-      if(ageDays > 10){
-        addHygieneLog(container,'warn',`⚠ ${name.slice(0,40)} — NAV is ${ageDays} days old (${cached.date}). Fund may be merged or closed.`);
-        issues++;
-        return;
-      }
-    }
-
-    // Name change check — update currentName automatically
-    const amfiName = cached.schemeName||'';
-    if(amfiName && amfiName !== name){
-      portfolioData.filter(hh=>String(hh.schemeCode)===code).forEach(hh=>{
-        if(hh.currentName !== amfiName){ hh.currentName = amfiName; renamed++; }
-      });
-      addHygieneLog(container,'warn',`↪ ${name.slice(0,35)} renamed → ${amfiName.slice(0,40)}`);
-    } else {
-      addHygieneLog(container,'ok',`✓ ${name.slice(0,50)} — verified`);
-    }
-  });
-
-  // Summary line
-  if(issues===0 && renamed===0){
-    addHygieneLog(container,'ok',`✓ All ${checked} scheme codes verified clean.`);
-  } else {
-    if(renamed>0) addHygieneLog(container,'warn',`↪ ${renamed} fund name(s) auto-updated from AMFI.`);
-    if(issues>0)  addHygieneLog(container,'error',`⚠ ${issues} issue(s) need attention — review above.`);
-  }
-
-  if(renamed>0) renderHoldings();
-}
-
-function addHygieneLog(container, type, msg){
-  const d = document.createElement('div');
-  d.className = `log-hygiene ${type}`;
-  d.textContent = msg;
-  container.appendChild(d);
-}
 
 // ═══════════════════════════════════
 // SOA PDF UPLOAD & PARSING
@@ -2376,16 +2532,16 @@ function renderSOACard(r, idx, container){
 
   // Badge
   let badge = '';
-  if(isNew)    badge = `<span style="background:rgba(58,159,212,0.15);color:#3a9fd4;border:1px solid rgba(58,159,212,0.3);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">NEW FUND</span>`;
-  if(isUpdate) badge = `<span style="background:rgba(92,184,138,0.12);color:var(--green);border:1px solid rgba(92,184,138,0.25);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">UPDATE</span>`;
-  if(noValue)  badge = `<span style="background:rgba(200,169,110,0.12);color:var(--accent);border:1px solid rgba(200,169,110,0.3);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:4px">NO VALUATION</span>`;
+  if(isNew)    badge = `<span style="background:rgba(58,159,212,0.15);color:#3a9fd4;border:1px solid rgba(58,159,212,0.3);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">NEW FUND</span>`;
+  if(isUpdate) badge = `<span style="background:rgba(92,184,138,0.12);color:var(--green);border:1px solid rgba(92,184,138,0.25);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">UPDATE</span>`;
+  if(noValue)  badge = `<span style="background:rgba(200,169,110,0.12);color:var(--accent);border:1px solid rgba(200,169,110,0.3);font-size:10px;font-family:var(--font-mono,monospace);padding:3px 9px;border-radius:4px">NO VALUATION</span>`;
 
   const matched = r.matchedId ? portfolioData.find(h=>h.id===r.matchedId) : null;
   const matchInfo = matched ? `<div style="font-size:10px;color:var(--green);margin-top:4px">✓ Matched to: ${matched.originalName||matched.fund} (ID ${matched.id})</div>` : '';
 
   const noteHtml = r.note ? `<div style="font-size:11px;color:var(--accent);background:rgba(200,169,110,0.07);border:1px solid rgba(200,169,110,0.2);border-radius:6px;padding:8px 10px;margin-top:10px">${r.note}</div>` : '';
 
-  const srcHtml = `<div style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;margin-top:6px">Source: ${r.source}</div>`;
+  const srcHtml = `<div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono,monospace);margin-top:6px">Source: ${r.source}</div>`;
 
   const membersOpts = MEMBERS.map(m=>`<option value="${m}" ${m===r.investor?'selected':''}>${m}</option>`).join('');
   const typeOpts = ['MF','PMS','AIF'].map(t=>`<option value="${t}" ${t===r.type?'selected':''}>${t}</option>`).join('');
@@ -2483,7 +2639,7 @@ async function soaSearchAMFI(idx){
   statusEl.textContent = 'Searching...'; statusEl.style.color='var(--accent)';
   resultsEl.style.display='none';
   try{
-    const r = await fetch(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(q.slice(0,50))}`);
+    const r = await fetchWithTimeout(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(q.slice(0,50))}`);
     const data = await r.json();
     if(!data?.length){ statusEl.textContent='No results'; statusEl.style.color='var(--red)'; return; }
     resultsEl.style.display='block';
@@ -2491,7 +2647,7 @@ async function soaSearchAMFI(idx){
       <div onclick="selectSOAScheme(${idx},'${d.schemeCode}','${d.schemeName.replace(/'/g,'`')}')"
         style="padding:8px 12px;cursor:pointer;font-size:11px;border-bottom:1px solid var(--border);transition:background 0.15s"
         onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
-        <span style="font-family:'DM Mono',monospace;color:var(--accent)">${d.schemeCode}</span>
+        <span style="font-family:var(--font-mono,monospace);color:var(--accent)">${d.schemeCode}</span>
         <span style="color:var(--text);margin-left:8px">${d.schemeName}</span>
       </div>`).join('');
     statusEl.textContent=`${data.length} results`; statusEl.style.color='var(--green)';
@@ -2545,7 +2701,7 @@ async function applySOACard(idx, state, matchedId){
     const invAmt  = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
     const code    = document.getElementById(`soa_code_${idx}`)?.value?.trim()||'';
 
-    const newId = Date.now();
+    const newId = portfolioData.length > 0 ? Math.max(...portfolioData.map(h=>h.id)) + 1 : 1;
     const newH = {
       id:newId, investor:inv, fund:fname, originalName:fname, currentName:'',
       house, folio, type, category:cat,
@@ -2577,7 +2733,7 @@ async function saveSinglePMSValue(h, value, invested, date){
   try{
     // Try to find existing row first
     const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A2:A500`;
-    const rr = await fetch(readUrl,{headers:{Authorization:`Bearer ${token}`}});
+    const rr = await fetchWithTimeout(readUrl,{headers:{Authorization:`Bearer ${token}`}});
     const rd = await rr.json();
     const rows = rd.values||[];
     const rowIdx = rows.findIndex(r=>parseInt(r[0])===h.id);
@@ -2589,7 +2745,7 @@ async function saveSinglePMSValue(h, value, invested, date){
       writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
       method = 'POST';
     }
-    await fetch(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    await fetchWithTimeout(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({values:[[h.id,h.fund||h.originalName,h.investor,invested||h.invested,value,date,'SOA Upload','']]})
     });
   }catch(e){ console.error('saveSinglePMSValue error',e); }
