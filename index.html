@@ -290,6 +290,10 @@
       <span id="sheetsStatusLabel">Sheets: Not connected</span>
     </div>
     <div class="last-updated">Updated: <span id="lastUpdatedTime">—</span></div>
+    <button class="refresh-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted)" onclick="openModal('addFundModal')" title="Add a new fund manually">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Fund
+    </button>
     <button class="refresh-btn" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent)" onclick="document.getElementById('soaFileInput').click()" title="Upload a statement PDF to auto-update values">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Upload Statement
@@ -373,14 +377,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- ADD NEW FUND BUTTON -->
-  <div style="display:flex;justify-content:flex-end;margin-bottom:22px">
-    <button class="refresh-btn" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent)" onclick="openModal('addFundModal')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add New Fund
-    </button>
   </div>
 
   <!-- NYSE HOLDINGS -->
