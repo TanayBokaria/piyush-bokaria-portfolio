@@ -1044,7 +1044,94 @@ async function fetchUSDINR(){
 }
 
 const FINNHUB_KEY = 'd7giaahr01qmqj45f3ngd7giaahr01qmqj45f3o0';
-const GEMINI_KEY = 'AIzaSyBE-JO_9WZVMFvixchP587SNgv2KSiSVg8';
+// GEMINI_KEY is not hardcoded — loaded from Google Sheet config tab or localStorage.
+let _geminiKey = null;
+
+async function getGeminiKey(){
+  if(_geminiKey) return _geminiKey;
+  const stored = localStorage.getItem('gemini_key');
+  if(stored){ _geminiKey = stored; return _geminiKey; }
+  if(sheetsConfig?.accessToken && sheetsConfig?.sheetId){
+    try{
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/config!A1:B20`;
+      const r = await fetchWithTimeout(url, {headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
+      if(r.ok){
+        const data = await r.json();
+        const rows = data.values || [];
+        const row = rows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
+        if(row && row[1]){
+          _geminiKey = row[1].trim();
+          localStorage.setItem('gemini_key', _geminiKey);
+          return _geminiKey;
+        }
+      }
+    }catch(e){ console.warn('Could not read Gemini key from Sheets:', e.message); }
+  }
+  return await promptForGeminiKey();
+}
+
+function promptForGeminiKey(){
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,15,20,0.85);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:480px;max-width:92vw">
+        <h2 style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:8px">Gemini API Key Required</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">
+          The AI-powered SOA extraction needs a Gemini API key.<br>
+          Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a>, then paste it below.
+        </p>
+        <input id="geminiKeyInput" type="text" placeholder="AIzaSy..."
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-family:var(--font-mono,monospace);font-size:12px;outline:none;box-sizing:border-box;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:16px;cursor:pointer">
+          <input type="checkbox" id="geminiSaveSheet" checked style="accent-color:var(--accent)">
+          Save to Google Sheet so all browsers use this key automatically
+        </label>
+        <div style="display:flex;gap:10px">
+          <button id="geminiKeySave" class="btn-primary" style="flex:1;padding:10px">Save & Continue</button>
+          <button id="geminiKeyCancel" class="btn-secondary" style="padding:10px 16px">Cancel</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:12px">
+          The key is saved in your browser and optionally in your Google Sheet. It is never stored in the dashboard code.
+        </p>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('#geminiKeyInput');
+    const saveBtn = overlay.querySelector('#geminiKeySave');
+    const cancelBtn = overlay.querySelector('#geminiKeyCancel');
+    const saveToSheet = overlay.querySelector('#geminiSaveSheet');
+
+    setTimeout(() => input.focus(), 100);
+
+    const finish = async (key) => {
+      overlay.remove();
+      if(!key){ resolve(null); return; }
+      _geminiKey = key;
+      localStorage.setItem('gemini_key', key);
+      if(saveToSheet.checked && sheetsConfig?.accessToken && sheetsConfig?.sheetId){
+        try{
+          const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/config!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+          await fetchWithTimeout(url, {
+            method:'POST',
+            headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`,'Content-Type':'application/json'},
+            body: JSON.stringify({values:[['gemini_key', key]]})
+          });
+        }catch(e){ console.warn('Could not save Gemini key to Sheet:', e.message); }
+      }
+      resolve(key);
+    };
+
+    saveBtn.addEventListener('click', () => {
+      const k = input.value.trim();
+      if(!k){ input.style.borderColor='var(--red)'; return; }
+      finish(k);
+    });
+    input.addEventListener('keydown', e => { if(e.key==='Enter'){ saveBtn.click(); } });
+    cancelBtn.addEventListener('click', () => finish(null));
+  });
+}
+
 const MEMBERS = ['Piyush Bokaria','Babita Bokaria','Rohan Bokaria','Kavya Bokaria','Piyush Bokaria HUF'];
 const CATEGORIES = ['Equity','Debt','PMS','AIF','EQ-Debt Tax','Debt-Others','Hybrid'];
 
@@ -1208,6 +1295,22 @@ async function loadFromSheets(){
   if(!_sid)return;
   sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
   try{
+    // Pre-load Gemini key from config tab if not already cached
+    if(!_geminiKey){
+      try{
+        const cfgUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/config!A1:B20`;
+        const cfgR = await fetchWithTimeout(cfgUrl, {headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
+        if(cfgR.ok){
+          const cfgData = await cfgR.json();
+          const cfgRows = cfgData.values || [];
+          const keyRow = cfgRows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
+          if(keyRow && keyRow[1]){
+            _geminiKey = keyRow[1].trim();
+            localStorage.setItem('gemini_key', _geminiKey);
+          }
+        }
+      }catch(e){ console.warn('Config tab read skipped:', e.message); }
+    }
     // Load PMS/AIF value updates
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/pms_aif_values!A2:H500`;
     const r=await fetchWithTimeout(url,{headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
@@ -2451,8 +2554,11 @@ Rules:
 - For type: if the document mentions 'AIF', 'Alternative Investment Fund', 'Cat I', 'Cat II', or 'Cat III', use 'AIF'. If it mentions 'PMS' or 'Portfolio Management', use 'PMS'. Otherwise use 'MF'
 - Do not guess values — only extract what is explicitly stated in the document`;
 
+  const geminiKey = await getGeminiKey();
+  if(!geminiKey) throw new Error('Gemini API key not available — SOA extraction cancelled.');
+
   const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
