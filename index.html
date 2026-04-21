@@ -1044,7 +1044,7 @@ async function fetchUSDINR(){
 }
 
 const FINNHUB_KEY = 'd7giaahr01qmqj45f3ngd7giaahr01qmqj45f3o0';
-const GEMINI_KEY = 'AIzaSyC1dB3L6IAfsBnKAiaaTMusVAR9sgAv1FU';
+const GEMINI_KEY = 'AIzaSyCRiLX1_oyoEW5rhhesjz6zEIXS142QIwI';
 
 async function fetchStockPrice(symbol){
   try{
@@ -2217,38 +2217,42 @@ async function handleSOAUpload(event){
     status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Extracting text from ${sanitize(file.name)}...`;
     try{
       const text = await extractPDFText(file);
-      let extracted = parseStatementText(text, file.name);
+      if(!text.trim()){ throw new Error('No text could be extracted — PDF may be a scanned image with no text layer.'); }
 
-      // Check extraction quality — if partial or blank, try Gemini
-      const needsGemini = extracted.length === 0 ||
-        extracted.every(r => !r.error && scoreExtraction(r).found < 4);
+      const isMFStatement = classifyStatement(text);
 
-      if(needsGemini && text.trim().length > 50){
-        status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Analysing with AI...`;
+      let extracted = [];
+
+      if(isMFStatement){
+        status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Reading mutual fund statement...`;
+        extracted = parseMFStatement(text, file.name);
+        const quality = extracted.reduce((a,r)=>a+scoreExtraction(r).found, 0);
+        const maxPossible = extracted.length * 6;
+        if(extracted.length === 0 || quality < maxPossible * 0.6){
+          status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Enhancing with AI...`;
+          try{
+            const geminiResult = await extractWithGemini(text, file.name, MEMBERS.join(', '));
+            if(geminiResult){
+              extracted = extracted.length > 0 ? [mergeExtractions(extracted[0], geminiResult)] : [geminiResult];
+            }
+          }catch(ge){ console.warn('Gemini enhancement skipped:', ge.message); }
+        }
+      } else {
+        status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Analysing with AI (PMS/AIF detected)...`;
         try{
           const geminiResult = await extractWithGemini(text, file.name, MEMBERS.join(', '));
           if(geminiResult){
-            // Merge Gemini result with regex result — Gemini fills gaps, regex keeps confirmed values
-            if(extracted.length > 0 && !extracted[0].error){
-              extracted = [mergeExtractions(extracted[0], geminiResult)];
-            } else {
-              extracted = [geminiResult];
-            }
+            extracted = [geminiResult];
+          } else {
+            extracted = parseMFStatement(text, file.name);
           }
         }catch(ge){
           console.warn('Gemini extraction failed:', ge.message);
-          // Tag the existing result (or blank result) with an AI failure notice
-          // so Priya sees it and can report it
-          const failNote = {
-            aiFailure: true,
-            aiError: ge.message || String(ge),
-            fileName: file.name
-          };
-          if(extracted.length > 0 && !extracted[0].error){
+          extracted = parseMFStatement(text, file.name);
+          if(extracted.length > 0){
             extracted[0].aiFailure = true;
             extracted[0].aiError = ge.message || String(ge);
           } else {
-            // No regex result either — push a dedicated AI failure card
             extracted = [{
               ...buildBlankResult(file.name),
               aiFailure: true,
@@ -2258,6 +2262,7 @@ async function handleSOAUpload(event){
         }
       }
 
+      if(!extracted.length) extracted = [buildBlankResult(file.name)];
       results.push(...extracted);
     }catch(e){
       console.error('SOA parse error:', e);
@@ -2390,7 +2395,7 @@ Rules:
 
   if(!parsed.fundName && !parsed.investor) return null;
 
-  const matchedId = matchHolding(parsed.folio||'', parsed.fundName||'');
+  const matchedId = matchHolding(parsed.folio||'', parsed.fundName||'', parsed.investor||'');
   return {
     state:        matchedId ? 'update' : 'new',
     fundName:     parsed.fundName     || '',
@@ -2432,21 +2437,43 @@ function mergeExtractions(regexResult, geminiResult){
 }
 
 
-function parseStatementText(text, fileName){
+// ── Statement classifier ──
+function classifyStatement(text){
+  const t = text.toUpperCase();
+  const isPMS = /\bPMS\b|PORTFOLIO\s+MANAGEMENT|PORTFOLIO\s+VALUE\s*\(/.test(t);
+  const isAIF = /\bAIF\b|ALTERNATIVE\s+INVESTMENT\s+FUND|CATEGORY\s+(I|II|III)\s+AIF|DRAWDOWN|CAPITAL\s+COMMITMENT/.test(t);
+  const isBroker = /EMKAY|MOTILAL\s+OSWAL\s+SECURITIES|IIFL\s+SECURITIES|KOTAK\s+SECURITIES|ACCOUNT\s+PERFORMANCE\s+STATEMENT/.test(t);
+  if(isPMS || isAIF || isBroker) return false;
+  const isCAMS = /CAMS|COMPUTER\s+AGE\s+MANAGEMENT|KARVY|KFINTECH|NSDL|CDSL/.test(t);
+  const hasMFScheme = /SCHEME\s+NAME|FOLIO\s+NO|UNITS\s+ALLOTTED|PURCHASE\s+PRICE|REDEMPTION/.test(t);
+  if(isCAMS || hasMFScheme) return true;
+  return false;
+}
+
+function parseMFStatement(text, fileName){
   const results = [];
   const t = text;
 
   // ── CAMS / InCred AIF (Account Statement format) ──
-  // Pattern: "Scheme Name NAV Unit Balance Value"
-  const camsSchemeMatch = t.match(/([A-Za-z][A-Za-z\s\-&]+Fund[^\n]{0,60})\s+([\d,]+\.[\d]+)\s+[\d,]+\.[\d]+\s+([\d,]+\.[\d]+)/);
+  // Pattern 1: "Scheme Name NAV units value" in tabular form
+  const camsSchemeMatch = t.match(/([A-Za-z][A-Za-z\s\-&.]+(?:Fund|AIF|Growth)[^\n]{0,60})\s+([\d,]+\.[\d]+)\s+[\d,]+\.[\d]+\s+([\d,]+\.[\d]+)/);
+  // Pattern 2: CAMS "Summary as on" line — catches Aarth AIF and similar
+  const camsSummaryMatch = t.match(/Summary\s+as\s+on\s+([\d-]+[A-Za-z\-\d]*)\s+NAV\s*:\s*([\d.]+)\s+Closing\s+Unit\s+Balance\s*:\s*([\d,]+\.[\d]+)\s+Closing\s+Value\s*:\s*([\d,]+\.[\d]+)/i);
+  // AIF fund name from CAMS header
+  const camsAIFFund = t.match(/([A-Za-z][A-Za-z\s\.\-]+(?:AIF|Growth|Fund)[^\n]{0,50})\n.*Statement\s+of\s+Account/i)?.[1]?.trim() ||
+    t.match(/^\s*([A-Za-z][A-Za-z\s\.\-]+(?:AIF|Growth\s+Fund)[^\n]{0,60})/im)?.[1]?.trim();
 
   // ── InCred Wealth PMS ──
   const incredPMSMatch = t.match(/InCred\s+Capital\s+([A-Za-z\s]+Portfolio[^\n]{0,40})\s+[\d\/]+\/[\d]+\s+[\d,]+\.[\d]+\s+([\d,]+)\s+([\d,]+)/);
 
   // ── Girik PMS ──
-  const girikMatch = t.match(/Portfolio\s+Value\s*\((\d{2}\/\d{2}\/\d{4})\)\s+([\d,]+)/);
-  const girikAccount = t.match(/Account:\s*[\d]+\s*[-–]\s*([A-Z\s]+(?:LIQUID|EQUITY|GROWTH)[^\n]{0,30})/i);
-  const girikInvestor = t.match(/([A-Z][A-Z\s]+BOKARIA(?:\s+HUF)?)\s+(?:JT\s+)?(?:LIQUID|EQUITY)/i);
+  // Allow optional leading minus/space for zero-balance accounts (e.g. "-0" or "-276,970")
+  const girikMatch = t.match(/Portfolio\s+Value\s*\((\d{2}\/\d{2}\/\d{4})\)\s+-?\s*([\d,]+)/);
+  // Account name covers LIQUID, MULTICAP, EQUITY, GROWTH, SMALLCAP, MIDCAP strategies
+  const girikAccount = t.match(/Account:\s*[\d]+\s*[-–]\s*([A-Z\s]+(?:LIQUID|MULTICAP|EQUITY|GROWTH|SMALLCAP|MIDCAP|FLEXI|HYBRID)[^\n]{0,30})/i);
+  // Extract investor from "Account: XXXXXX - PRASHANT BOKARIA JT LIQUID/MULTICAP" line
+  const girikInvestor = t.match(/Account\s*:\s*\d+\s*[-–]\s*([A-Z][A-Z\s]+BOKARIA(?:\s+HUF)?)/i) ||
+    t.match(/([A-Z][A-Z\s]+BOKARIA(?:\s+HUF)?)\s+(?:JT\s+)?(?:LIQUID|MULTICAP|EQUITY|GROWTH)/i);
 
   // ── PixelSky / Generic AIF ──
   const pixelskyMatch = t.match(/PixelSky\s+Capital\s+Fund\s+[I1]+/i);
@@ -2455,9 +2482,9 @@ function parseStatementText(text, fileName){
   // PDF.js collapses multi-column tables: all headers appear first, then all values
   // "Total Capital Commitment Total Capital Contributed Total Net Capital Contributed...₹ X ₹ Y ₹ Z"
   // So match the entire table header block and capture the ₹ values in positional order
-  const capitalTableMatch = t.match(/Total\s+Capital\s+Commitment.*?₹\s*([\d,]+)\s*₹\s*([\d,]+)\s*₹\s*([\d,]+)/i);
+  const capitalTableMatch = t.match(/Total\s+Capital\s+Commitment[\s\S]*?₹\s*([\d,]+)\s*₹\s*([\d,]+)\s*₹\s*([\d,]+)/i);
   const aifCommitment = capitalTableMatch ? {1: capitalTableMatch[1]} : t.match(/Total\s+Capital\s+Commitment\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
-  const aifContrib    = capitalTableMatch ? {1: capitalTableMatch[2]} : t.match(/Total\s+(?:Net\s+)?Capital\s+Contributed\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
+  const aifContrib    = capitalTableMatch ? {1: capitalTableMatch[2]} : t.match(/Total\s+Capital\s+Contributed[^\d\n]*\n?[^\d\n₹]*₹?\s*([\d,]+)/i);
   // Units table: "Face Value per Unit Units Allotted Units Redeemed Balance Units ₹ 100 57,000 ₹ 0 57,000"
   // Positionally: face=group1, allotted=group2, redeemed_val=group3, balance=group4
   const unitsTableMatch = t.match(/Face\s+Value\s+per\s+Unit\s+Units\s+Allotted\s+Units\s+Redeemed\s+Balance\s+Units\s*₹\s*([\d,]+)\s+([\d,]+)\s*₹\s*([\d,]+)\s+([\d,]+)/i);
@@ -2465,9 +2492,18 @@ function parseStatementText(text, fileName){
   const aifBalanceUnits = unitsTableMatch ? parseFloat(unitsTableMatch[4].replace(/,/g,'')) : 0;
   const aifDrawdown = t.match(/Amount\s*\(INR\)\s*₹?\s*([\d,]+)/i);
 
-  // ── Generic investor name ──
-  const genericInvestor = t.match(/(?:Client|Investor|Name)[^:]*:\s*([A-Z][a-z]+\s+Bokaria(?:\s+HUF)?)/i) ||
-    t.match(/((?:Prashant|Shalini|Tanay|Tanvi)\s+Bokaria(?:\s+HUF)?)/i);
+  // ── Emkay PMS ──
+  const emkayMatch = t.match(/Emkay\s+Investment\s+Managers/i) ||
+    t.match(/EMKAY\s+SMID\s+CAP\s+GROWTH\s+ENGINE\s+PORTFOLIO/i);
+  const emkayValue = t.match(/Current\s+Strategy\s+Value\s+([\d,]+(?:\.\d+)?)/i);
+  const emkayNet   = t.match(/Net\s+([\d,]+(?:\.\d+)?)/i);
+  const emkayClient = t.match(/Client\s+Name\s*:\s*([A-Z][A-Za-z\s]+Bokaria[^-]*)/i);
+  const emkayActivation = t.match(/Activation\s+Date\s+([\d-]+)/i);
+
+  // ── Generic investor name (case-insensitive, handles ALL-CAPS PDFs) ──
+  const genericInvestor = t.match(/(?:Client|Investor|Name)\s*(?:Name)?\s*[:\s]\s*([A-Z][A-Za-z]+\s+Bokaria(?:\s+HUF)?)/i) ||
+    t.match(/((?:Piyush|Babita|Rohan|Kavya)\s+Bokaria(?:\s+HUF)?)/i) ||
+    t.match(/((?:PIYUSH|BABITA|ROHAN|KAVYA)\s+BOKARIA(?:\s+HUF)?)/i);
 
   // ── Date extraction ──
   const dateMatch = t.match(/(?:as\s+on|as\s+at|statement\s+date)[^:]*:?\s*(\d{1,2}[-\/]\w{2,3}[-\/]\d{2,4}|\d{2}\/\d{2}\/\d{4})/i) ||
@@ -2486,12 +2522,12 @@ function parseStatementText(text, fileName){
     const invested = extractInvestedAmount(t);
 
     results.push({
-      state: matchHolding(folio, fundName) ? 'update' : 'new',
+      state: matchHolding(folio, fundName, investor) ? 'update' : 'new',
       fundName, investor, folio, soaDate,
       currentValue: value, invested, nav,
       type: 'AIF', category: 'AIF',
       schemeCode: '', fundHouse: extractFundHouse(fundName),
-      matchedId: matchHolding(folio, fundName),
+      matchedId: matchHolding(folio, fundName, investor),
       source: 'CAMS AIF Statement'
     });
   }
@@ -2506,12 +2542,12 @@ function parseStatementText(text, fileName){
     const folio = t.match(/Owner\s*:\s*(\d+)/i)?.[1] || '';
 
     results.push({
-      state: matchHolding(folio, fundName) ? 'update' : 'new',
+      state: matchHolding(folio, fundName, investor) ? 'update' : 'new',
       fundName, investor, folio, soaDate,
       currentValue: value, invested,
       type: 'PMS', category: 'PMS',
       schemeCode: '', fundHouse: 'InCred',
-      matchedId: matchHolding(folio, fundName),
+      matchedId: matchHolding(folio, fundName, investor),
       source: 'InCred Wealth PMS Statement'
     });
   }
@@ -2528,13 +2564,13 @@ function parseStatementText(text, fileName){
 
     if(value > 0){
       results.push({
-        state: matchHolding(folio, 'Girik') ? 'update' : 'new',
+        state: matchHolding(folio, 'Girik', investor) ? 'update' : 'new',
         fundName: 'Girik Wealth Advisors Pvt. Ltd (PMS)',
         investor, folio, soaDate: date||soaDate,
         currentValue: value, invested,
         type: 'PMS', category: 'PMS',
         schemeCode: '', fundHouse: 'Girik',
-        matchedId: matchHolding(folio, 'Girik'),
+        matchedId: matchHolding(folio, 'Girik', investor),
         source: 'Girik PMS Statement'
       });
     } else {
@@ -2565,7 +2601,7 @@ function parseStatementText(text, fileName){
     const currentValueFromNav = (navValue && effectiveUnits > 0) ? navValue * effectiveUnits : contrib;
 
     // This is a drawdown/transaction confirmation — no current market valuation
-    const existingId = matchHolding(folio, 'PixelSky');
+    const existingId = matchHolding(folio, 'PixelSky', investor);
     if(existingId){
       results.push({
         state: 'update',
@@ -2615,7 +2651,7 @@ function parseStatementText(text, fileName){
       currentValue: value, invested,
       type: 'MF', category: 'Equity',
       schemeCode: '', fundHouse: extractFundHouse(fundName),
-      matchedId: matchHolding(folio, fundName),
+      matchedId: matchHolding(folio, fundName, investor),
       source: fileName,
       partialExtraction: fieldsFound < 4,
       extractionScore: fieldsFound,
@@ -2644,20 +2680,28 @@ function matchInvestorName(raw){
   return raw.trim();
 }
 
-function matchHolding(folio, fundName){
-  // Try folio match first
+function matchHolding(folio, fundName, investor){
+  // Folio is the most reliable identifier — unique per investor holding
   if(folio){
     const byFolio = portfolioData.find(h=> h.folio && h.folio.replace(/\s/g,'').toLowerCase() === folio.replace(/\s/g,'').toLowerCase());
     if(byFolio) return byFolio.id;
   }
-  // Fuzzy fund name match
+  // Fuzzy fund name match — also checks investor to handle multi-investor same fund correctly
   if(fundName){
     const fn = fundName.toLowerCase();
+    const inv = (investor||'').toLowerCase();
     const byName = portfolioData.find(h=>{
       const hname = (h.originalName||h.fund||'').toLowerCase();
       const words = fn.split(/\s+/).filter(w=>w.length>3);
       const matches = words.filter(w=>hname.includes(w)).length;
-      return matches >= 2;
+      if(matches < 2) return false;
+      // If investor is known, require it to match to avoid cross-investor false positives
+      if(inv && h.investor){
+        const hinv = h.investor.toLowerCase();
+        const firstWord = inv.split(' ')[0];
+        return hinv.includes(firstWord);
+      }
+      return true;
     });
     if(byName) return byName.id;
   }
@@ -2821,20 +2865,75 @@ function renderSOACard(r, idx, container){
 
   const fmtVal = v => v ? '₹'+parseFloat(v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
 
-  // Helper: mark required field label red if empty
-  const req = (label, val) => `<div class="modal-label" style="${!val||val===0?'color:var(--red)':''}">${label}${!val||val===0?' <span style=\"color:var(--red)\">*</span>':''}</div>`;
+  // ── UPDATE path: fund already exists ──
+  if(isUpdate && matched){
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        ${badge}
+        <span style="font-size:13px;font-weight:600;flex:1">${sanitize(r.fundName)||'<span style="color:var(--text-dim)">Fund name not detected</span>'}</span>
+      </div>
+      ${aiFailureBanner}
+      ${scoreBarHtml}
+      <div style="background:rgba(92,184,138,0.08);border:1px solid rgba(92,184,138,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px">✓ This fund is already in your dashboard</div>
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.6">
+          <span style="color:var(--text)">${sanitize(matched.originalName||matched.fund||'')}</span>
+          <span style="font-family:var(--font-mono,monospace);color:var(--text-dim)">&nbsp;(${sanitize(matched.investor||'')} · ID ${matched.id})</span><br>
+          Value on file: <strong style="color:var(--text)">₹${parseFloat(matched.currentValue||0).toLocaleString('en-IN')}</strong>
+          &nbsp;·&nbsp; Last updated: <strong style="color:var(--text)">${matched.soaDate||'—'}</strong>
+        </div>
+        <div style="font-size:11px;color:var(--accent);margin-top:8px">Confirm the values below and click <strong>Update Entry</strong> to overwrite with the latest figures from this SOA.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div class="modal-label">Fund Name</div>
+          <input class="modal-input" id="soa_fname_${idx}" value="${r.fundName.replace(/"/g,'&quot;')}" style="font-size:11px">
+        </div>
+        <div>
+          <div class="modal-label">Investor</div>
+          <select class="modal-input" id="soa_inv_${idx}" style="font-size:11px">${membersOpts}</select>
+        </div>
+        <div>
+          <div class="modal-label" style="color:var(--green);font-weight:600">Current Value (₹) — from SOA</div>
+          <input class="modal-input" id="soa_val_${idx}" type="number" value="${r.currentValue||''}" style="font-size:11px;border-color:rgba(92,184,138,0.5)">
+        </div>
+        <div>
+          <div class="modal-label" style="color:var(--green);font-weight:600">As Of Date — from SOA</div>
+          <input class="modal-input" id="soa_date_${idx}" type="date" value="${r.soaDate||''}" style="font-size:11px;border-color:rgba(92,184,138,0.5)">
+        </div>
+        <div>
+          <div class="modal-label">Invested Amount (₹) <span style="font-size:10px;color:var(--text-dim)">(update if called capital changed)</span></div>
+          <input class="modal-input" id="soa_inv_amt_${idx}" type="number" value="${r.invested||matched.invested||''}" style="font-size:11px">
+        </div>
+        <div>
+          <div class="modal-label">Folio / Account No</div>
+          <input class="modal-input" id="soa_folio_${idx}" value="${r.folio||matched.folio||''}" style="font-size:11px">
+        </div>
+      </div>
+      ${noteHtml}${srcHtml}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        ${reportLink}
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
+        <button class="btn-primary" style="padding:6px 20px;font-size:12px;background:var(--green);border-color:var(--green)" onclick="applySOACard(${idx},'update',${r.matchedId})">Update Entry</button>
+      </div>`;
+    container.appendChild(card);
+    return;
+  }
+
+  // ── NEW FUND path: not in dashboard yet ──
+  const _req = (label, val) => `<div class="modal-label" style="${!val||val===0?'color:var(--red)':''}">${label}${!val||val===0?' <span style=\"color:var(--red)\">*</span>':''}</div>`;
 
   card.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       ${badge}
-      <span style="font-size:13px;font-weight:600;flex:1">${sanitize(r.fundName)||'<span style=\"color:var(--text-dim)\">Fund name not detected</span>'}</span>
+      <span style="font-size:13px;font-weight:600;flex:1">${sanitize(r.fundName)||'<span style="color:var(--text-dim)">Fund name not detected</span>'}</span>
     </div>
-    ${matchInfo}
     ${aiFailureBanner}
     ${scoreBarHtml}
-    ${isNew ? `<div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#3a9fd4">
-      ⚡ New fund detected — not found in current dashboard holdings. Fill in the details below and click Add to Dashboard.
-    </div>` : ''}
+    <div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#3a9fd4;margin-bottom:4px">⚡ Looks like a new fund is being added</div>
+      <div style="font-size:11px;color:var(--text-muted)">This holding wasn't found in your current dashboard. Verify the details below and fill in any missing fields before adding.</div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <div class="modal-label">Fund Name*</div>
@@ -2852,7 +2951,6 @@ function renderSOACard(r, idx, container){
         <div class="modal-label">As Of Date*</div>
         <input class="modal-input" id="soa_date_${idx}" type="date" value="${r.soaDate||''}" style="font-size:11px">
       </div>
-      ${isUpdate ? '' : `
       <div>
         <div class="modal-label">Invested Amount (₹)*</div>
         <input class="modal-input" id="soa_inv_amt_${idx}" type="number" value="${r.invested||''}" style="font-size:11px">
@@ -2884,13 +2982,13 @@ function renderSOACard(r, idx, container){
           <button class="btn-secondary" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="soaSearchAMFI(${idx})">Search AMFI</button>
         </div>
         <div id="soa_amfi_results_${idx}" style="display:none;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
-      </div>`}
+      </div>
     </div>
     ${noteHtml}${srcHtml}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       ${reportLink}
       <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
-      <button class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'${r.state}',${r.matchedId||'null'})">${isUpdate?'Apply Update':'Add to Dashboard'}</button>
+      <button class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'new',null)">Add to Dashboard</button>
     </div>`;
 
   container.appendChild(card);
@@ -2950,6 +3048,13 @@ async function applySOACard(idx, state, matchedId){
     if(h){
       h.currentValue = val;
       h.soaDate = date;
+      // Also update invested if Priya changed it
+      const updatedInvested = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
+      if(updatedInvested > 0) h.invested = updatedInvested;
+      if(fname) h.fund = fname;
+      if(inv) h.investor = inv;
+      const updatedFolio = document.getElementById(`soa_folio_${idx}`)?.value?.trim();
+      if(updatedFolio) h.folio = updatedFolio;
       // If Sheets connected, save to pms_aif_values
       if(sheetsConnected && (h.type==='PMS'||h.type==='AIF')){
         await saveSinglePMSValue(h, val, h.invested, date);
