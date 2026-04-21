@@ -2314,17 +2314,44 @@ function buildBlankResult(fileName){
   };
 }
 
-async function extractPDFText(file){
+async function extractPDFText(file, knownPassword = null){
   const buffer = await file.arrayBuffer();
-  // Use the inline-bundled PDF.js with the real CDN worker (same version 3.11.174)
-  // This runs parsing off the main thread, preventing timeouts on large PDFs
   const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
   if(!pdfjsLib) throw new Error('PDF.js library not available');
-  // Set the real CDN worker — exact version match is critical
   if(pdfjsLib.GlobalWorkerOptions){
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
-  const pdf = await pdfjsLib.getDocument({data: buffer, verbosity: 0}).promise;
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: buffer,
+    verbosity: 0,
+    ...(knownPassword ? {password: knownPassword} : {})
+  });
+
+  loadingTask.onPassword = (updatePassword, reason) => {
+    const wrongPassword = reason === 2;
+    showPasswordPrompt(file.name, wrongPassword, (pwd) => {
+      if(pwd === null){
+        loadingTask.destroy().catch(()=>{});
+        updatePassword('');
+      } else {
+        updatePassword(pwd);
+      }
+    });
+  };
+
+  let pdf;
+  try{
+    pdf = await loadingTask.promise;
+  } catch(e){
+    if(e?.name === 'PasswordException' || e?.message?.includes('password') || e?.message?.includes('Password')){
+      throw new Error('Incorrect password or password entry was cancelled.');
+    }
+    throw e;
+  }
+
+  hidePasswordPrompt();
+
   let text = '';
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
@@ -2332,6 +2359,60 @@ async function extractPDFText(file){
     text += content.items.map(item=>item.str).join(' ') + '\n';
   }
   return text;
+}
+
+// ── Password prompt UI (shown inline in the SOA modal) ──
+function showPasswordPrompt(fileName, wrongPassword, onSubmit){
+  hidePasswordPrompt();
+
+  const status = document.getElementById('soaParsingStatus');
+  const prompt = document.createElement('div');
+  prompt.id = 'soaPasswordPrompt';
+  prompt.style.cssText = 'padding:18px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin:10px 0';
+
+  prompt.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:18px">🔒</span>
+      <span style="font-size:13px;font-weight:600">Password Protected PDF</span>
+    </div>
+    ${wrongPassword ? `<div style="font-size:12px;color:var(--red);margin-bottom:10px">⚠ Incorrect password. Please try again.</div>` : ''}
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+      <strong style="color:var(--text)">${sanitize(fileName)}</strong> requires a password to open.<br>
+      This is usually the investor's <strong style="color:var(--accent)">PAN number</strong> (e.g. AABCP1234Z).
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="soaPwdInput" type="text" placeholder="Enter PAN / password"
+        style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:var(--font-mono,monospace);font-size:13px;letter-spacing:1px;text-transform:uppercase;outline:none"
+        autocomplete="off" spellcheck="false">
+      <button id="soaPwdSubmit" class="btn-primary" style="padding:8px 16px;font-size:13px;white-space:nowrap">Unlock</button>
+      <button id="soaPwdCancel" class="btn-secondary" style="padding:8px 12px;font-size:13px">Skip</button>
+    </div>`;
+
+  status.parentNode.insertBefore(prompt, status);
+
+  const input = document.getElementById('soaPwdInput');
+  const submitBtn = document.getElementById('soaPwdSubmit');
+  const cancelBtn = document.getElementById('soaPwdCancel');
+
+  input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+
+  const submit = () => {
+    const pwd = input.value.trim();
+    if(!pwd) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Unlocking...';
+    onSubmit(pwd);
+  };
+
+  submitBtn.addEventListener('click', submit);
+  input.addEventListener('keydown', e => { if(e.key === 'Enter') submit(); });
+  cancelBtn.addEventListener('click', () => onSubmit(null));
+
+  setTimeout(() => input.focus(), 100);
+}
+
+function hidePasswordPrompt(){
+  document.getElementById('soaPasswordPrompt')?.remove();
 }
 
 // ═══════════════════════════════════
