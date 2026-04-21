@@ -2311,11 +2311,15 @@ function buildBlankResult(fileName){
 
 async function extractPDFText(file){
   const buffer = await file.arrayBuffer();
-  // Use the inline-bundled PDF.js with disableWorker to avoid needing a worker URL
+  // Use the inline-bundled PDF.js with the real CDN worker (same version 3.11.174)
+  // This runs parsing off the main thread, preventing timeouts on large PDFs
   const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
   if(!pdfjsLib) throw new Error('PDF.js library not available');
-  if(pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-  const pdf = await pdfjsLib.getDocument({data: buffer, disableWorker: true, verbosity: 0}).promise;
+  // Set the real CDN worker — exact version match is critical
+  if(pdfjsLib.GlobalWorkerOptions){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const pdf = await pdfjsLib.getDocument({data: buffer, verbosity: 0}).promise;
   let text = '';
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
@@ -2348,7 +2352,7 @@ Extract these fields and return ONLY valid JSON, no other text:
   "invested": number or 0,
   "units": number or 0,
   "nav": number or 0,
-  "type": "MF" or "PMS" or "AIF",
+  "type": "MF" or "PMS" or "AIF",  // AIF = Alternative Investment Fund (Cat I/II/III), PMS = Portfolio Management Service, MF = Mutual Fund
   "category": "Equity" or "Debt" or "PMS" or "AIF" or "Hybrid" or "EQ-Debt Tax" or "Debt-Others",
   "fundHouse": "fund house / AMC / manager name",
   "note": "any important detail not captured above, or empty string"
@@ -2358,10 +2362,11 @@ Rules:
 - All monetary values must be plain numbers, no currency symbols or commas (e.g. 5700000 not Rs.57,00,000)
 - For AIF/PMS: invested = total capital contributed to date; currentValue = NAV x units if NAV available, else = invested
 - If a field cannot be found, use empty string for text and 0 for numbers
+- For type: if the document mentions 'AIF', 'Alternative Investment Fund', 'Cat I', 'Cat II', or 'Cat III', use 'AIF'. If it mentions 'PMS' or 'Portfolio Management', use 'PMS'. Otherwise use 'MF'
 - Do not guess values — only extract what is explicitly stated in the document`;
 
   const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`,
     {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
