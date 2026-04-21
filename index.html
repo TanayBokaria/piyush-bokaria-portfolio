@@ -1044,6 +1044,7 @@ async function fetchUSDINR(){
 }
 
 const FINNHUB_KEY = 'd7giaahr01qmqj45f3ngd7giaahr01qmqj45f3o0';
+const GEMINI_KEY = 'AIzaSyC1dB3L6IAfsBnKAiaaTMusVAR9sgAv1FU';
 
 async function fetchStockPrice(symbol){
   try{
@@ -2216,7 +2217,47 @@ async function handleSOAUpload(event){
     status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Extracting text from ${sanitize(file.name)}...`;
     try{
       const text = await extractPDFText(file);
-      const extracted = parseStatementText(text, file.name);
+      let extracted = parseStatementText(text, file.name);
+
+      // Check extraction quality — if partial or blank, try Gemini
+      const needsGemini = extracted.length === 0 ||
+        extracted.every(r => !r.error && scoreExtraction(r).found < 4);
+
+      if(needsGemini && text.trim().length > 50){
+        status.innerHTML = `<div class="loading-spinner" style="width:24px;height:24px;margin:0 auto 10px"></div>Analysing with AI...`;
+        try{
+          const geminiResult = await extractWithGemini(text, file.name, MEMBERS.join(', '));
+          if(geminiResult){
+            // Merge Gemini result with regex result — Gemini fills gaps, regex keeps confirmed values
+            if(extracted.length > 0 && !extracted[0].error){
+              extracted = [mergeExtractions(extracted[0], geminiResult)];
+            } else {
+              extracted = [geminiResult];
+            }
+          }
+        }catch(ge){
+          console.warn('Gemini extraction failed:', ge.message);
+          // Tag the existing result (or blank result) with an AI failure notice
+          // so Priya sees it and can report it
+          const failNote = {
+            aiFailure: true,
+            aiError: ge.message || String(ge),
+            fileName: file.name
+          };
+          if(extracted.length > 0 && !extracted[0].error){
+            extracted[0].aiFailure = true;
+            extracted[0].aiError = ge.message || String(ge);
+          } else {
+            // No regex result either — push a dedicated AI failure card
+            extracted = [{
+              ...buildBlankResult(file.name),
+              aiFailure: true,
+              aiError: ge.message || String(ge)
+            }];
+          }
+        }
+      }
+
       results.push(...extracted);
     }catch(e){
       console.error('SOA parse error:', e);
@@ -2284,6 +2325,108 @@ async function extractPDFText(file){
   return text;
 }
 
+// ═══════════════════════════════════
+// GEMINI AI FALLBACK EXTRACTOR
+// ═══════════════════════════════════
+async function extractWithGemini(rawText, fileName, memberNames){
+  const truncated = rawText.slice(0, 8000);
+  const prompt = `You are a financial document parser. Extract investment details from this statement.
+
+INVESTOR NAMES IN THIS FAMILY (use exactly as written):
+${memberNames}
+
+DOCUMENT TEXT:
+${truncated}
+
+Extract these fields and return ONLY valid JSON, no other text:
+{
+  "fundName": "exact fund/portfolio/scheme name",
+  "investor": "investor name exactly as listed above, or empty string if not found",
+  "folio": "folio number, account number, or client ID",
+  "soaDate": "statement date in YYYY-MM-DD format, or empty string",
+  "currentValue": number or 0,
+  "invested": number or 0,
+  "units": number or 0,
+  "nav": number or 0,
+  "type": "MF" or "PMS" or "AIF",
+  "category": "Equity" or "Debt" or "PMS" or "AIF" or "Hybrid" or "EQ-Debt Tax" or "Debt-Others",
+  "fundHouse": "fund house / AMC / manager name",
+  "note": "any important detail not captured above, or empty string"
+}
+
+Rules:
+- All monetary values must be plain numbers, no currency symbols or commas (e.g. 5700000 not Rs.57,00,000)
+- For AIF/PMS: invested = total capital contributed to date; currentValue = NAV x units if NAV available, else = invested
+- If a field cannot be found, use empty string for text and 0 for numbers
+- Do not guess values — only extract what is explicitly stated in the document`;
+
+  const response = await fetchWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: prompt}]}],
+        generationConfig: {temperature: 0, maxOutputTokens: 512}
+      })
+    },
+    20000
+  );
+
+  if(!response.ok){
+    const err = await response.json().catch(()=>({}));
+    throw new Error(`Gemini API ${response.status}: ${err?.error?.message||'unknown'}`);
+  }
+
+  const data = await response.json();
+  const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  const cleaned = rawJson.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  const parsed = JSON.parse(cleaned);
+
+  if(!parsed.fundName && !parsed.investor) return null;
+
+  const matchedId = matchHolding(parsed.folio||'', parsed.fundName||'');
+  return {
+    state:        matchedId ? 'update' : 'new',
+    fundName:     parsed.fundName     || '',
+    investor:     matchInvestorName(parsed.investor||''),
+    folio:        parsed.folio        || '',
+    soaDate:      parsed.soaDate      || '',
+    currentValue: parsed.currentValue || 0,
+    invested:     parsed.invested     || 0,
+    units:        parsed.units        || null,
+    nav:          parsed.nav          || null,
+    type:         ['MF','PMS','AIF'].includes(parsed.type) ? parsed.type : 'PMS',
+    category:     parsed.category     || 'Equity',
+    schemeCode:   '',
+    fundHouse:    parsed.fundHouse    || extractFundHouse(parsed.fundName||''),
+    matchedId,
+    note:         parsed.note         || '',
+    source:       `AI-extracted from ${fileName}`,
+    partialExtraction: false
+  };
+}
+
+function mergeExtractions(regexResult, geminiResult){
+  // Prefer confirmed regex values; fill gaps with Gemini
+  const pick = (rv, gv) => (rv && rv !== 0 && rv !== '') ? rv : gv;
+  return {
+    ...geminiResult,
+    fundName:     pick(regexResult.fundName,     geminiResult.fundName),
+    investor:     pick(regexResult.investor,     geminiResult.investor),
+    folio:        pick(regexResult.folio,        geminiResult.folio),
+    soaDate:      pick(regexResult.soaDate,      geminiResult.soaDate),
+    currentValue: pick(regexResult.currentValue, geminiResult.currentValue),
+    invested:     pick(regexResult.invested,     geminiResult.invested),
+    matchedId:    regexResult.matchedId || geminiResult.matchedId,
+    state:        (regexResult.matchedId || geminiResult.matchedId) ? 'update' : 'new',
+    source:       regexResult.source
+      ? regexResult.source + ' + AI-enhanced'
+      : geminiResult.source,
+  };
+}
+
+
 function parseStatementText(text, fileName){
   const results = [];
   const t = text;
@@ -2304,9 +2447,17 @@ function parseStatementText(text, fileName){
   const pixelskyMatch = t.match(/PixelSky\s+Capital\s+Fund\s+[I1]+/i);
   const aifInvestor = t.match(/Investor\s+Name\s*:?\s*:?\s*([A-Za-z]+\s+Bokaria(?:\s+HUF)?)/i);
   const aifFolio = t.match(/Folio\s+(?:ID|No)\.?\s*:?\s*([A-Z0-9_\/\-]+)/i);
-  const aifContrib = t.match(/Total\s+(?:Net\s+)?Capital\s+Contributed\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
-  const aifUnits = t.match(/(?:Total\s+)?Units\s+Allotted[^\d]*([\d,]+)/i);
-  const aifCommitment = t.match(/Total\s+Capital\s+Commitment\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
+  // PDF.js collapses multi-column tables: all headers appear first, then all values
+  // "Total Capital Commitment Total Capital Contributed Total Net Capital Contributed...₹ X ₹ Y ₹ Z"
+  // So match the entire table header block and capture the ₹ values in positional order
+  const capitalTableMatch = t.match(/Total\s+Capital\s+Commitment.*?₹\s*([\d,]+)\s*₹\s*([\d,]+)\s*₹\s*([\d,]+)/i);
+  const aifCommitment = capitalTableMatch ? {1: capitalTableMatch[1]} : t.match(/Total\s+Capital\s+Commitment\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
+  const aifContrib    = capitalTableMatch ? {1: capitalTableMatch[2]} : t.match(/Total\s+(?:Net\s+)?Capital\s+Contributed\s*(?:[₹Rs\.]+)?\s*([\d,]+)/i);
+  // Units table: "Face Value per Unit Units Allotted Units Redeemed Balance Units ₹ 100 57,000 ₹ 0 57,000"
+  // Positionally: face=group1, allotted=group2, redeemed_val=group3, balance=group4
+  const unitsTableMatch = t.match(/Face\s+Value\s+per\s+Unit\s+Units\s+Allotted\s+Units\s+Redeemed\s+Balance\s+Units\s*₹\s*([\d,]+)\s+([\d,]+)\s*₹\s*([\d,]+)\s+([\d,]+)/i);
+  const aifUnits = unitsTableMatch ? {1: unitsTableMatch[2]} : t.match(/(?:Total\s+)?Units\s+Allotted[^\d]*([\d,]+)/i);
+  const aifBalanceUnits = unitsTableMatch ? parseFloat(unitsTableMatch[4].replace(/,/g,'')) : 0;
   const aifDrawdown = t.match(/Amount\s*\(INR\)\s*₹?\s*([\d,]+)/i);
 
   // ── Generic investor name ──
@@ -2402,9 +2553,11 @@ function parseStatementText(text, fileName){
     const units = aifUnits ? parseFloat(aifUnits[1].replace(/,/g,'')) : 0;
     const drawdown = aifDrawdown ? parseFloat(aifDrawdown[1].replace(/,/g,'')) : 0;
     // Calculate current value from NAV if available (NAV per Unit × Balance Units)
-    const navPerUnit = t.match(/NAV\s+per\s+Unit[^:]*:\s*(?:INR|₹|Rs\.?)?\s*([\d.]+)/i);
+    const navPerUnit = t.match(/NAV\s+per\s+Unit[^:]*:\s*(?:INR|₹|Rs\.?)\s*([\d.]+)/i);
     const navValue = navPerUnit ? parseFloat(navPerUnit[1]) : null;
-    const currentValueFromNav = (navValue && units > 0) ? navValue * units : contrib;
+    // Use balance units from table if available, otherwise fall back to allotted units
+    const effectiveUnits = aifBalanceUnits > 0 ? aifBalanceUnits : units;
+    const currentValueFromNav = (navValue && effectiveUnits > 0) ? navValue * effectiveUnits : contrib;
 
     // This is a drawdown/transaction confirmation — no current market valuation
     const existingId = matchHolding(folio, 'PixelSky');
@@ -2629,9 +2782,18 @@ function renderSOACard(r, idx, container){
         </div>`
       : ''}`;
 
+  // AI failure banner — shown when Gemini was attempted but failed
+  const aiFailureBanner = r.aiFailure
+    ? `<div style="background:rgba(224,123,106,0.1);border:1px solid rgba(224,123,106,0.35);border-radius:7px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--red)">
+        <strong>⚠ AI extraction failed</strong> — Gemini could not process this document.<br>
+        <span style="color:var(--text-muted);margin-top:3px;display:block">Error: ${sanitize(r.aiError||'unknown')}</span>
+        <span style="color:var(--text-muted);margin-top:3px;display:block">Please fill in all fields manually and use the Report button below so this format can be patched.</span>
+      </div>`
+    : '';
+
   // Report link for partial extractions
-  const reportLink = isPartial
-    ? `<a href="mailto:tanay@intermode.in?subject=SOA+Parsing+Issue&body=File%3A+${encodeURIComponent(r.source||'')}%0AFields+missing%3A+${encodeURIComponent(missingFields.join(', '))}%0AExtracted+${foundCount}+of+${totalCount}+fields" style="font-size:10px;color:var(--text-muted);text-decoration:underline;cursor:pointer">Report parsing issue</a>`
+  const reportLink = (isPartial || r.aiFailure)
+    ? `<a href="mailto:tanay@intermode.in?subject=SOA+Parsing+Issue&body=File%3A+${encodeURIComponent(r.source||'')}%0A${r.aiFailure?'AI+Error%3A+'+encodeURIComponent(r.aiError||'')+'%0A':''}Fields+missing%3A+${encodeURIComponent(missingFields.join(', '))}%0AExtracted+${foundCount}+of+${totalCount}+fields" style="font-size:10px;color:var(--text-muted);text-decoration:underline;cursor:pointer">Report parsing issue</a>`
     : '';
 
   const membersOpts = MEMBERS.map(m=>`<option value="${m}" ${m===r.investor?'selected':''}>${m}</option>`).join('');
@@ -2663,6 +2825,7 @@ function renderSOACard(r, idx, container){
       <span style="font-size:13px;font-weight:600;flex:1">${sanitize(r.fundName)||'<span style=\"color:var(--text-dim)\">Fund name not detected</span>'}</span>
     </div>
     ${matchInfo}
+    ${aiFailureBanner}
     ${scoreBarHtml}
     ${isNew ? `<div style="background:rgba(58,159,212,0.08);border:1px solid rgba(58,159,212,0.2);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#3a9fd4">
       ⚡ New fund detected — not found in current dashboard holdings. Fill in the details below and click Add to Dashboard.
