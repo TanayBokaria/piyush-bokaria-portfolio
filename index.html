@@ -2951,6 +2951,7 @@ function normaliseDate(raw){
 function renderSOACard(r, idx, container){
   const card = document.createElement('div');
   card.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px';
+  card.setAttribute('data-soa-idx', idx);
 
   // Hard failure — PDF couldn't be read at all
   if(r.error){
@@ -3100,8 +3101,8 @@ function renderSOACard(r, idx, container){
       ${noteHtml}${srcHtml}
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         ${reportLink}
-        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
-        <button class="btn-primary" style="padding:6px 20px;font-size:12px;background:var(--green);border-color:var(--green)" onclick="applySOACard(${idx},'update',${r.matchedId})">Update Entry</button>
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('[data-soa-idx]').remove()">Skip</button>
+        <button id="soa_apply_${idx}" class="btn-primary" style="padding:6px 20px;font-size:12px;background:var(--green);border-color:var(--green)" onclick="applySOACard(${idx},'update',${r.matchedId})">Update Entry</button>
       </div>`;
     container.appendChild(card);
     return;
@@ -3174,8 +3175,8 @@ function renderSOACard(r, idx, container){
     ${noteHtml}${srcHtml}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       ${reportLink}
-      <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Skip</button>
-      <button class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'new',null)">Add to Dashboard</button>
+      <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('[data-soa-idx]').remove()">Skip</button>
+      <button id="soa_apply_${idx}" class="btn-primary" style="padding:6px 20px;font-size:12px" onclick="applySOACard(${idx},'new',null)">Add to Dashboard</button>
     </div>`;
 
   container.appendChild(card);
@@ -3219,79 +3220,149 @@ function selectSOAScheme(idx, code, name){
 }
 
 async function applySOACard(idx, state, matchedId){
-  const val   = parseFloat(document.getElementById(`soa_val_${idx}`)?.value)||0;
-  const date  = document.getElementById(`soa_date_${idx}`)?.value||'';
-  const fname = document.getElementById(`soa_fname_${idx}`)?.value?.trim()||'';
-  const inv   = document.getElementById(`soa_inv_${idx}`)?.value||'';
+  const val      = parseFloat(document.getElementById(`soa_val_${idx}`)?.value)||0;
+  const date     = document.getElementById(`soa_date_${idx}`)?.value||'';
+  const fname    = document.getElementById(`soa_fname_${idx}`)?.value?.trim()||'';
+  const inv      = document.getElementById(`soa_inv_${idx}`)?.value||'';
+  const invAmt   = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
+  const type     = document.getElementById(`soa_type_${idx}`)?.value||'MF';
+  const cat      = document.getElementById(`soa_cat_${idx}`)?.value||'Equity';
+  const folio    = document.getElementById(`soa_folio_${idx}`)?.value?.trim()||'';
+  const house    = document.getElementById(`soa_house_${idx}`)?.value?.trim()||'';
+  const pdate    = document.getElementById(`soa_pdate_${idx}`)?.value||'';
+  const code     = document.getElementById(`soa_code_${idx}`)?.value?.trim()||'';
 
-  if(!val || !date || !fname || !inv){
-    alert('Please fill in all required fields (Fund Name, Investor, Current Value, As Of Date) before applying.');
+  // Validation
+  const missing = [];
+  if(!fname) missing.push('Fund Name');
+  if(!inv)   missing.push('Investor');
+  if(!val)   missing.push('Current Value');
+  if(!date)  missing.push('As Of Date');
+  if(missing.length){
+    showSOACardError(idx, `Please fill in required fields before applying: ${missing.join(', ')}.`);
     return;
   }
 
-  if(state === 'update' && matchedId){
-    // Update existing holding
-    const h = portfolioData.find(x=>x.id===matchedId);
-    if(h){
-      h.currentValue = val;
-      h.soaDate = date;
-      // Also update invested if Priya changed it
-      const updatedInvested = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
-      if(updatedInvested > 0) h.invested = updatedInvested;
-      if(fname) h.fund = fname;
-      if(inv) h.investor = inv;
-      const updatedFolio = document.getElementById(`soa_folio_${idx}`)?.value?.trim();
-      if(updatedFolio) h.folio = updatedFolio;
-      // If Sheets connected, save to pms_aif_values
-      if(sheetsConnected && (h.type==='PMS'||h.type==='AIF')){
-        await saveSinglePMSValue(h, val, h.invested, date);
-      }
-      addLog(`✓ SOA update applied: ${fname} → ₹${val.toLocaleString('en-IN')} as of ${date}`);
-    }
-    renderAll();
-  } else if(state === 'new'){
-    // Build new holding object exactly like addNewFund does
-    const type    = document.getElementById(`soa_type_${idx}`)?.value||'MF';
-    const cat     = document.getElementById(`soa_cat_${idx}`)?.value||'Equity';
-    const folio   = document.getElementById(`soa_folio_${idx}`)?.value?.trim()||'';
-    const house   = document.getElementById(`soa_house_${idx}`)?.value?.trim()||'';
-    const pdate   = document.getElementById(`soa_pdate_${idx}`)?.value||'';
-    const invAmt  = parseFloat(document.getElementById(`soa_inv_amt_${idx}`)?.value)||0;
-    const code    = document.getElementById(`soa_code_${idx}`)?.value?.trim()||'';
+  const cardEl = document.querySelector(`[data-soa-idx="${idx}"]`);
+  const applyBtn = document.getElementById(`soa_apply_${idx}`);
 
-    const newId = portfolioData.length > 0 ? Math.max(...portfolioData.map(h=>h.id)) + 1 : 1;
-    const newH = {
-      id:newId, investor:inv, fund:fname, originalName:fname, currentName:'',
-      house, folio, type, category:cat,
-      invested:invAmt, currentValue:val, units:null,
-      navCost:null, currentNav:null, schemeCode:code||null,
-      purchaseDate:pdate, soaDate:date
-    };
-    portfolioData.push(newH);
-
-    if(sheetsConnected){
-      await saveNewHoldingToSheets(newH, '');
-    }
-    addLog(`✓ New fund added from SOA: ${fname} (${inv})`);
-    renderAll();
+  if(applyBtn){
+    applyBtn.disabled = true;
+    applyBtn.innerHTML = `<span class="loading-spinner" style="width:12px;height:12px;display:inline-block;margin-right:6px;vertical-align:middle"></span>Saving...`;
   }
 
-  // Remove the card
-  const cards = document.getElementById('soaCards');
-  const allCards = cards.querySelectorAll('div[style*="border-radius: 10px"], div[style*="border-radius:10px"]');
-  // Find and remove this specific card by traversing
-  document.getElementById(`soa_val_${idx}`)?.closest('div[style*="border-radius"]')?.remove() ||
-  document.getElementById(`soa_fname_${idx}`)?.closest('div[style*="border-radius"]')?.remove();
+  const sheetsWarn = !sheetsConnected
+    ? 'Google Sheets is not connected — changes saved to dashboard only. Reconnect Sheets to persist.'
+    : null;
+
+  try{
+    if(state === 'update' && matchedId){
+      const h = portfolioData.find(x=>x.id===matchedId);
+      if(!h) throw new Error(`Holding ID ${matchedId} not found in portfolio data.`);
+
+      h.currentValue = val;
+      h.soaDate      = date;
+      if(invAmt > 0)  h.invested  = invAmt;
+      if(fname)       h.fund      = fname;
+      if(inv)         h.investor  = inv;
+      if(folio)       h.folio     = folio;
+
+      if(sheetsConnected){
+        if(h.type==='PMS' || h.type==='AIF'){
+          const saved = await saveSinglePMSValue(h, val, h.invested, date);
+          if(!saved) throw new Error('Failed to write to pms_aif_values sheet. Check your Sheets connection.');
+        } else {
+          const saved = await saveNewHoldingToSheets(h, `SOA value update — ${date}`);
+          if(!saved) throw new Error('Failed to write to new_holdings sheet. Check your Sheets connection.');
+        }
+      }
+
+      addLog(`✓ SOA update applied: ${fname} → ₹${val.toLocaleString('en-IN')} as of ${date}`);
+      renderAll();
+      showSOACardSuccess(cardEl, idx, 'update', fname, val, date, sheetsWarn);
+
+    } else if(state === 'new'){
+      const newId = portfolioData.length > 0 ? Math.max(...portfolioData.map(h=>h.id)) + 1 : 1;
+      const newH = {
+        id:newId, investor:inv, fund:fname, originalName:fname, currentName:'',
+        house, folio, type, category:cat,
+        invested:invAmt||val, currentValue:val, units:null,
+        navCost:null, currentNav:null, schemeCode:code||null,
+        purchaseDate:pdate, soaDate:date
+      };
+      portfolioData.push(newH);
+
+      if(sheetsConnected){
+        const saved = await saveNewHoldingToSheets(newH, 'Added via SOA upload');
+        if(!saved){
+          portfolioData.pop();
+          throw new Error('Failed to save new holding to Google Sheets. The fund was not added. Check your Sheets connection and try again.');
+        }
+        if(newH.type==='PMS' || newH.type==='AIF'){
+          await saveSinglePMSValue(newH, val, newH.invested, date);
+        }
+      }
+
+      addLog(`✓ New fund added from SOA: ${fname} (${inv})`);
+      renderAll();
+      showSOACardSuccess(cardEl, idx, 'new', fname, val, date, sheetsWarn);
+    }
+
+  } catch(err){
+    console.error('applySOACard error:', err);
+    if(applyBtn){
+      applyBtn.disabled = false;
+      applyBtn.innerHTML = state === 'update' ? 'Update Entry' : 'Add to Dashboard';
+    }
+    showSOACardError(idx, err.message || String(err));
+  }
+}
+
+function showSOACardSuccess(cardEl, idx, action, fname, val, date, sheetsWarn){
+  if(!cardEl) return;
+  const actionLabel = action === 'update' ? 'Updated' : 'Added';
+  const sheetsLine = sheetsWarn
+    ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(224,123,106,0.1);border:1px solid rgba(224,123,106,0.3);border-radius:6px;font-size:11px;color:var(--red)">⚠ ${sheetsWarn}</div>`
+    : `<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">✓ Written to Google Sheets</div>`;
+
+  cardEl.style.borderColor = 'rgba(92,184,138,0.5)';
+  cardEl.style.background  = 'rgba(92,184,138,0.06)';
+  cardEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:22px">✅</span>
+      <span style="font-size:14px;font-weight:600;color:var(--green)">${actionLabel} Successfully</span>
+    </div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:4px">${sanitize(fname)}</div>
+    <div style="font-size:12px;color:var(--text-muted)">
+      Current Value: <strong style="color:var(--text)">₹${val.toLocaleString('en-IN')}</strong>
+      &nbsp;·&nbsp; As of <strong style="color:var(--text)">${date}</strong>
+    </div>
+    ${sheetsLine}
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn-secondary" style="padding:5px 14px;font-size:12px"
+        onclick="this.closest('[data-soa-idx]').remove()">Dismiss</button>
+    </div>`;
+}
+
+function showSOACardError(idx, message){
+  document.getElementById(`soa_err_${idx}`)?.remove();
+  const cardEl = document.querySelector(`[data-soa-idx="${idx}"]`);
+  if(!cardEl) return;
+  const errDiv = document.createElement('div');
+  errDiv.id = `soa_err_${idx}`;
+  errDiv.style.cssText = 'margin-top:12px;padding:10px 14px;background:rgba(224,123,106,0.1);border:1px solid rgba(224,123,106,0.4);border-radius:8px;font-size:12px;color:var(--red);line-height:1.5';
+  errDiv.innerHTML = `<strong>⚠ Save failed</strong><br>${sanitize(message)}`;
+  cardEl.appendChild(errDiv);
 }
 
 async function saveSinglePMSValue(h, value, invested, date){
-  if(!sheetsConfig?.accessToken) return;
+  if(!sheetsConfig?.accessToken) return false;
   const sheetId = sheetsConfig.sheetId || DEFAULT_SHEET_ID;
   const token = sheetsConfig.accessToken;
   try{
-    // Try to find existing row first
     const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A2:A500`;
     const rr = await fetchWithTimeout(readUrl,{headers:{Authorization:`Bearer ${token}`}});
+    if(!rr.ok) throw new Error(`Sheets read failed: ${rr.status}`);
     const rd = await rr.json();
     const rows = rd.values||[];
     const rowIdx = rows.findIndex(r=>parseInt(r[0])===h.id);
@@ -3303,10 +3374,15 @@ async function saveSinglePMSValue(h, value, invested, date){
       writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/pms_aif_values!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
       method = 'POST';
     }
-    await fetchWithTimeout(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    const wr = await fetchWithTimeout(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({values:[[h.id,h.fund||h.originalName,h.investor,invested||h.invested,value,date,'SOA Upload','']]})
     });
-  }catch(e){ console.error('saveSinglePMSValue error',e); }
+    if(!wr.ok) throw new Error(`Sheets write failed: ${wr.status}`);
+    return true;
+  }catch(e){
+    console.error('saveSinglePMSValue error',e);
+    return false;
+  }
 }
 
 function closeSOAModal(){
