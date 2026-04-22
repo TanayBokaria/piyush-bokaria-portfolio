@@ -1045,12 +1045,13 @@ async function fetchUSDINR(){
 
 const FINNHUB_KEY = 'd7giaahr01qmqj45f3ngd7giaahr01qmqj45f3o0';
 // GEMINI_KEY is not hardcoded — loaded from Google Sheet config tab or localStorage.
-let _geminiKey = null;
+let _geminiKey = null;   // legacy single-key cache (kept for promptForGeminiKey compat)
+let _geminiKeys = null;  // all keys loaded from Sheet: [key1, key2, key3]
+let _geminiKeyIdx = 0;   // session index — advances on 429 so exhausted keys are skipped
 
-async function getGeminiKey(){
-  if(_geminiKey) return _geminiKey;
-  const stored = localStorage.getItem('gemini_key');
-  if(stored){ _geminiKey = stored; return _geminiKey; }
+// ── Load all Gemini keys from Sheet config tab (gemini_key_1/2/3, or legacy gemini_key) ──
+async function getGeminiKeys(){
+  if(_geminiKeys) return _geminiKeys;
   if(sheetsConfig?.accessToken && sheetsConfig?.sheetId){
     try{
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/config!A1:B20`;
@@ -1058,16 +1059,35 @@ async function getGeminiKey(){
       if(r.ok){
         const data = await r.json();
         const rows = data.values || [];
-        const row = rows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
-        if(row && row[1]){
-          _geminiKey = row[1].trim();
-          localStorage.setItem('gemini_key', _geminiKey);
-          return _geminiKey;
+        const keys = [];
+        for(const name of ['gemini_key_1','gemini_key_2','gemini_key_3']){
+          const row = rows.find(r => (r[0]||'').toString().trim().toLowerCase() === name);
+          if(row && row[1] && row[1].trim()) keys.push(row[1].trim());
+        }
+        if(keys.length === 0){
+          const row = rows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
+          if(row && row[1] && row[1].trim()) keys.push(row[1].trim());
+        }
+        if(keys.length > 0){
+          _geminiKeys = keys;
+          localStorage.setItem('gemini_key', keys[0]);
+          console.log(`Gemini: loaded ${keys.length} key(s) from Sheet`);
+          return _geminiKeys;
         }
       }
-    }catch(e){ console.warn('Could not read Gemini key from Sheets:', e.message); }
+    }catch(e){ console.warn('Could not read Gemini keys from Sheets:', e.message); }
   }
-  return await promptForGeminiKey();
+  const stored = localStorage.getItem('gemini_key');
+  if(stored){ _geminiKeys = [stored]; return _geminiKeys; }
+  const k = await promptForGeminiKey();
+  if(k){ _geminiKeys = [k]; }
+  return _geminiKeys || [];
+}
+
+// Legacy single-key getter — used by promptForGeminiKey save path
+async function getGeminiKey(){
+  const keys = await getGeminiKeys();
+  return keys[0] || null;
 }
 
 function promptForGeminiKey(){
@@ -1295,18 +1315,28 @@ async function loadFromSheets(){
   if(!_sid)return;
   sheetsConfig.sheetId=sheetsConfig.sheetId||DEFAULT_SHEET_ID;
   try{
-    // Pre-load Gemini key from config tab if not already cached
-    if(!_geminiKey){
+    // Pre-load all Gemini keys from config tab
+    if(!_geminiKeys){
       try{
         const cfgUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.sheetId}/values/config!A1:B20`;
         const cfgR = await fetchWithTimeout(cfgUrl, {headers:{Authorization:`Bearer ${sheetsConfig.accessToken}`}});
         if(cfgR.ok){
           const cfgData = await cfgR.json();
           const cfgRows = cfgData.values || [];
-          const keyRow = cfgRows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
-          if(keyRow && keyRow[1]){
-            _geminiKey = keyRow[1].trim();
-            localStorage.setItem('gemini_key', _geminiKey);
+          const keys = [];
+          for(const name of ['gemini_key_1','gemini_key_2','gemini_key_3']){
+            const row = cfgRows.find(r => (r[0]||'').toString().trim().toLowerCase() === name);
+            if(row && row[1] && row[1].trim()) keys.push(row[1].trim());
+          }
+          if(keys.length === 0){
+            const row = cfgRows.find(r => (r[0]||'').toString().trim().toLowerCase() === 'gemini_key');
+            if(row && row[1] && row[1].trim()) keys.push(row[1].trim());
+          }
+          if(keys.length > 0){
+            _geminiKeys = keys;
+            _geminiKey = keys[0];
+            localStorage.setItem('gemini_key', keys[0]);
+            console.log(`Gemini: pre-loaded ${keys.length} key(s) on Sheets connect`);
           }
         }
       }catch(e){ console.warn('Config tab read skipped:', e.message); }
@@ -2554,28 +2584,63 @@ Rules:
 - For type: if the document mentions 'AIF', 'Alternative Investment Fund', 'Cat I', 'Cat II', or 'Cat III', use 'AIF'. If it mentions 'PMS' or 'Portfolio Management', use 'PMS'. Otherwise use 'MF'
 - Do not guess values — only extract what is explicitly stated in the document`;
 
-  const geminiKey = await getGeminiKey();
-  if(!geminiKey) throw new Error('Gemini API key not available — SOA extraction cancelled.');
+  const geminiKeys = await getGeminiKeys();
+  if(!geminiKeys || geminiKeys.length === 0) throw new Error('No Gemini API key available — please add gemini_key_1 to your Sheet config tab or reconnect Sheets.');
 
-  const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-    {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        contents: [{parts: [{text: prompt}]}],
-        generationConfig: {temperature: 0, maxOutputTokens: 512}
-      })
-    },
-    20000
-  );
-
-  if(!response.ok){
-    const err = await response.json().catch(()=>({}));
-    throw new Error(`Gemini API ${response.status}: ${err?.error?.message||'unknown'}`);
+  // ── Key rotation: try each key in order starting from _geminiKeyIdx ──
+  // IMPORTANT: never mutate _geminiKeyIdx inside the loop — the modulo offset shifts
+  // and causes keys to be double-skipped. Only update it after the loop resolves.
+  let data = null;
+  let lastErr = null;
+  const total = geminiKeys.length;
+  const startIdx = _geminiKeyIdx;
+  let successIdx = -1;
+  for(let attempt = 0; attempt < total; attempt++){
+    const idx = (startIdx + attempt) % total;
+    const geminiKey = geminiKeys[idx];
+    try{
+      const res = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            contents: [{parts: [{text: prompt}]}],
+            generationConfig: {temperature: 0, maxOutputTokens: 512}
+          })
+        },
+        20000
+      );
+      if(res.status === 429){
+        await res.json().catch(()=>({})); // drain body
+        console.warn(`Gemini key ${idx+1}/${total} hit quota (429) — trying next key...`);
+        lastErr = `Key ${idx+1} quota exceeded`;
+        continue; // try next key — do NOT touch _geminiKeyIdx here
+      }
+      if(!res.ok){
+        const errBody = await res.json().catch(()=>({}));
+        throw new Error(`Gemini API ${res.status}: ${errBody?.error?.message||'unknown'}`);
+      }
+      // Success — record which key worked so next upload starts here
+      if(attempt > 0) console.log(`Gemini key ${idx+1}/${total} succeeded after ${attempt} rotation(s)`);
+      data = await res.json();
+      successIdx = idx;
+      break;
+    }catch(e){
+      if(e.message.includes('quota') || e.message.includes('429')){
+        lastErr = e.message;
+        continue; // try next key
+      }
+      throw e; // non-quota errors bubble up immediately
+    }
   }
 
-  const data = await response.json();
+  // Update session index AFTER loop — start from the key that worked next time
+  if(successIdx >= 0) _geminiKeyIdx = successIdx;
+
+  if(!data){
+    throw new Error(`All ${total} Gemini key(s) have hit their quota limit. Please wait for the daily reset or add more keys to the Sheet config tab (gemini_key_1, gemini_key_2, gemini_key_3).`);
+  }
   const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
   const cleaned = rawJson.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   let parsed;
