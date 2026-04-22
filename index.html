@@ -2522,7 +2522,7 @@ function hidePasswordPrompt(){
 // GEMINI AI FALLBACK EXTRACTOR
 // ═══════════════════════════════════
 async function extractWithGemini(rawText, fileName, memberNames){
-  const truncated = rawText.slice(0, 8000);
+  const truncated = rawText.slice(0, 15000);
   const prompt = `You are a financial document parser. Extract investment details from this statement.
 
 INVESTOR NAMES IN THIS FAMILY (use exactly as written):
@@ -2558,7 +2558,7 @@ Rules:
   if(!geminiKey) throw new Error('Gemini API key not available — SOA extraction cancelled.');
 
   const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -2578,7 +2578,9 @@ Rules:
   const data = await response.json();
   const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
   const cleaned = rawJson.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-  const parsed = JSON.parse(cleaned);
+  let parsed;
+  try { parsed = JSON.parse(cleaned); }
+  catch(e){ throw new Error(`Gemini returned unparseable JSON: ${cleaned.slice(0,120)}`); }
 
   if(!parsed.fundName && !parsed.investor) return null;
 
@@ -2879,7 +2881,7 @@ function matchHolding(folio, fundName, investor){
     const inv = (investor||'').toLowerCase();
     const byName = portfolioData.find(h=>{
       const hname = (h.originalName||h.fund||'').toLowerCase();
-      const words = fn.split(/\s+/).filter(w=>w.length>3);
+      const words = fn.split(/\s+/).filter(w=>w.length>2);
       const matches = words.filter(w=>hname.includes(w)).length;
       if(matches < 2) return false;
       // If investor is known, require it to match to avoid cross-investor false positives
@@ -2963,7 +2965,7 @@ function renderSOACard(r, idx, container){
       <div style="font-size:12px;color:var(--red);margin-bottom:12px">⚠ ${sanitize(r.message)}</div>
       <div style="font-size:11px;color:var(--text-muted)">This PDF could not be opened. It may be password-protected, corrupted, or an image-only scan with no text layer. Please enter the values manually using the Update Values panel or Add New Fund.</div>
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('[data-soa-idx]').remove()">Dismiss</button>
         <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="closeSOAModal();openModal('addFundModal')">Add Manually</button>
       </div>`;
     container.appendChild(card);
@@ -3045,7 +3047,7 @@ function renderSOACard(r, idx, container){
       ${srcHtml}
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
         <a href="mailto:tanay@intermode.in?subject=SOA+Parsing+Issue&body=File%3A+${encodeURIComponent(r.source)}%0ANote%3A+No+valuation+found+in+this+statement" style="font-size:11px;color:var(--text-muted);align-self:center;text-decoration:underline">Report issue</a>
-        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('div[style*=border-radius]').remove()">Dismiss</button>
+        <button class="btn-secondary" style="padding:6px 16px;font-size:12px" onclick="this.closest('[data-soa-idx]').remove()">Dismiss</button>
       </div>`;
     container.appendChild(card);
     return;
@@ -3075,7 +3077,7 @@ function renderSOACard(r, idx, container){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <div class="modal-label">Fund Name</div>
-          <input class="modal-input" id="soa_fname_${idx}" value="${r.fundName.replace(/"/g,'&quot;')}" style="font-size:11px">
+          <input class="modal-input" id="soa_fname_${idx}" value="${(r.fundName||'').replace(/"/g,'&quot;')}" style="font-size:11px">
         </div>
         <div>
           <div class="modal-label">Investor</div>
@@ -3125,7 +3127,7 @@ function renderSOACard(r, idx, container){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <div class="modal-label">Fund Name*</div>
-        <input class="modal-input" id="soa_fname_${idx}" value="${r.fundName.replace(/"/g,'&quot;')}" style="font-size:11px">
+        <input class="modal-input" id="soa_fname_${idx}" value="${(r.fundName||'').replace(/"/g,'&quot;')}" style="font-size:11px">
       </div>
       <div>
         <div class="modal-label">Investor*</div>
@@ -3277,7 +3279,7 @@ async function applySOACard(idx, state, matchedId){
         }
       }
 
-      addLog(`✓ SOA update applied: ${fname} → ₹${val.toLocaleString('en-IN')} as of ${date}`);
+      console.log(`✓ SOA update applied: ${fname} → ₹${val.toLocaleString('en-IN')} as of ${date}`);
       renderAll();
       showSOACardSuccess(cardEl, idx, 'update', fname, val, date, sheetsWarn);
 
@@ -3303,9 +3305,11 @@ async function applySOACard(idx, state, matchedId){
         }
       }
 
-      addLog(`✓ New fund added from SOA: ${fname} (${inv})`);
+      console.log(`✓ New fund added from SOA: ${fname} (${inv})`);
       renderAll();
       showSOACardSuccess(cardEl, idx, 'new', fname, val, date, sheetsWarn);
+    } else {
+      throw new Error(`Unexpected state: state="${state}", matchedId=${matchedId}. Please refresh and try again.`);
     }
 
   } catch(err){
@@ -3377,7 +3381,10 @@ async function saveSinglePMSValue(h, value, invested, date){
     const wr = await fetchWithTimeout(writeUrl,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({values:[[h.id,h.fund||h.originalName,h.investor,invested||h.invested,value,date,'SOA Upload','']]})
     });
-    if(!wr.ok) throw new Error(`Sheets write failed: ${wr.status}`);
+    if(!wr.ok){
+      if(wr.status === 401) throw new Error('Google Sheets session expired. Please reconnect Sheets (click the Sheets pill at the top) and try again.');
+      throw new Error(`Sheets write failed: ${wr.status}`);
+    }
     return true;
   }catch(e){
     console.error('saveSinglePMSValue error',e);
