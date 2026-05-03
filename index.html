@@ -190,19 +190,23 @@
     .fund-house{font-size:9px;}
 
     /* Hide less critical columns on mobile */
-    /* Cols: 1=OrigName 2=CurrName 3=Investor 4=Type 5=Invested 6=CurrVal 7=NAV 8=Gain 9=Held 10=CAGR 11=Source 12=Delete */
+    /* Cols: 1=OrigName 2=CurrName 3=Investor 4=Type 5=Invested 6=CurrVal 7=NAV 8=Gain 9=Held 10=FlatYield 11=AnnYield 12=CAGR 13=Source 14=Delete */
     .holdings-table th:nth-child(2),   /* Current Name */
     .holdings-table td:nth-child(2),
     .holdings-table th:nth-child(7),   /* NAV */
     .holdings-table td:nth-child(7),
     .holdings-table th:nth-child(9),   /* Held */
     .holdings-table td:nth-child(9),
-    .holdings-table th:nth-child(10),  /* CAGR */
+    .holdings-table th:nth-child(10),  /* Flat Yield */
     .holdings-table td:nth-child(10),
-    .holdings-table th:nth-child(11),  /* Source */
+    .holdings-table th:nth-child(11),  /* Ann. Yield */
     .holdings-table td:nth-child(11),
-    .holdings-table th:nth-child(12),  /* Delete */
-    .holdings-table td:nth-child(12){display:none;}
+    .holdings-table th:nth-child(12),  /* CAGR */
+    .holdings-table td:nth-child(12),
+    .holdings-table th:nth-child(13),  /* Source */
+    .holdings-table td:nth-child(13),
+    .holdings-table th:nth-child(14),  /* Delete */
+    .holdings-table td:nth-child(14){display:none;}
 
     /* Filter tabs — wrap nicely */
     .filter-tabs{gap:5px;margin-bottom:12px;}
@@ -329,7 +333,7 @@
   <div class="panel" style="margin-bottom:22px">
     <div class="panel-header"><div class="panel-title">All Holdings</div><div id="tableCount" class="panel-badge">44 FUNDS</div></div>
     <div class="panel-body" style="padding-bottom:8px">
-      <div class="filter-tabs">
+      <div class="filter-tabs" id="tableFilter">
         <button class="filter-tab active" onclick="filterTable('all',this)">All Members</button>
         <button class="filter-tab" onclick="filterTable('Piyush Bokaria',this)"><span class="member-dot" style="background:var(--piyush)"></span>Piyush</button>
         <button class="filter-tab" onclick="filterTable('Babita Bokaria',this)"><span class="member-dot" style="background:var(--babita)"></span>Babita</button>
@@ -345,11 +349,18 @@
           <th style="text-align:right">Invested</th><th style="text-align:right">Current Value</th>
           <th style="text-align:right">NAV</th>
           <th style="text-align:right">Gain / Loss</th><th style="text-align:right">Held</th>
+          <th style="text-align:right">Flat Yield</th><th style="text-align:right">Ann. Yield</th>
           <th style="text-align:right">CAGR</th><th style="text-align:center">Source</th>
           <th style="text-align:center"></th>
         </tr></thead>
         <tbody id="holdingsBody"></tbody>
       </table>
+    </div>
+    <!-- MF / PMS / AIF Summary Footer -->
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:24px;flex-wrap:wrap;font-size:12px">
+      <div><span style="color:var(--text-muted)">Total Invested: </span><span id="mfTotalInvested" style="font-family:var(--font-mono,monospace)">—</span></div>
+      <div><span style="color:var(--text-muted)">Current Value: </span><span id="mfTotalCurrent" style="font-family:var(--font-mono,monospace);font-weight:600">—</span></div>
+      <div><span style="color:var(--text-muted)">Overall Gain: </span><span id="mfTotalGain" style="font-family:var(--font-mono,monospace)">—</span></div>
     </div>
   </div>
 
@@ -1914,6 +1925,15 @@ function renderTable(){
   const data=activeFilter==='all'?portfolioData:portfolioData.filter(h=>h.investor===activeFilter);
   document.getElementById('tableCount').textContent=data.length+' FUNDS';
   const tbody=document.getElementById('holdingsBody');tbody.innerHTML='';
+
+  // ── MF/PMS/AIF footer totals (filter-aware) ──
+  const mfI=data.reduce((a,h)=>a+h.invested,0);
+  const mfC=data.reduce((a,h)=>a+(h.currentValue||0),0);
+  const mfG=mfC-mfI;
+  const mfGpct=mfI>0?(mfG/mfI)*100:0;
+  document.getElementById('mfTotalInvested').textContent=fmtCr(mfI);
+  document.getElementById('mfTotalCurrent').textContent=fmtCr(mfC);
+  document.getElementById('mfTotalGain').innerHTML=`<span class="${gainClass(mfG)}">${gainPrefix(mfG)}${fmtCr(mfG)} (${gainPrefix(mfGpct)}${mfGpct.toFixed(1)}%)</span>`;
   data.forEach(h=>{
     const gain=(h.currentValue||0)-h.invested;
     const gainPct=h.invested>0?(gain/h.invested)*100:0;
@@ -1922,6 +1942,13 @@ function renderTable(){
     const cagrStr=cagr!==null
       ? `<span class="${gainClass(cagr)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(cagr)}${cagr.toFixed(1)}%</span>`
       : '<span style="color:var(--text-dim)">—</span>';
+    const flatYield = gainPct; // total return % = (currentValue - invested) / invested * 100
+    const annYield  = (days && days > 0) ? flatYield / (days / 365) : null;
+    const yieldFmt  = v => v !== null
+      ? `<span class="${gainClass(v)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(v)}${v.toFixed(1)}%</span>`
+      : '<span style="color:var(--text-dim)">—</span>';
+    const flatYieldStr = yieldFmt(flatYield);
+    const annYieldStr  = yieldFmt(annYield);
 
     // NAV cell — show currentNav for MFs, "—" for PMS/AIF
     const navStr = h.currentNav
@@ -1948,7 +1975,9 @@ function renderTable(){
       <td style="text-align:right"><span class="amount">${fmtExact(h.currentValue||0)}</span>${h.soaDate?`<div style="font-size:10px;color:var(--text-dim)">${h.soaDate}</div>`:''}</td>
       <td style="text-align:right">${navStr}</td>
       <td style="text-align:right"><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:12px">${gainPrefix(gain)}${fmtExact(gain)}</div><div class="${gainClass(gain)}" style="font-family:var(--font-mono,monospace);font-size:11px">${gainPrefix(gainPct)}${gainPct.toFixed(1)}%</div></td>
-      <td style="text-align:right"><span style="font-family:var(--font-mono,monospace);font-size:12px;color:var(--text-muted)">${fmtDays(days)}</span>${days!==null?`<div style="font-size:10px;color:var(--text-dim)">${days}d</div>`:''}</td>
+      <td style="text-align:right"><span style="font-family:var(--font-mono,monospace);font-size:12px;color:var(--text-muted)">${days!==null?days+'d':'—'}</span></td>
+      <td style="text-align:right">${flatYieldStr}</td>
+      <td style="text-align:right">${annYieldStr}</td>
       <td style="text-align:right">${cagrStr}</td>
       <td style="text-align:center">${isAuto?'<span class="status-dot live-dot"></span><span style="font-size:11px;color:var(--green)">Live</span>':'<span class="status-dot manual-dot"></span><span style="font-size:11px;color:var(--accent)">SOA</span>'}</td>
       <td style="text-align:center"><button class="delete-btn" onclick="confirmDelete(${h.id})" title="Remove fund">✕</button></td>`;
