@@ -668,6 +668,85 @@
 // ═══════════════════════════════════
 // DATA
 // ═══════════════════════════════════
+const SI_MAP = {
+  '401148011196': 147,  // Nippon India Retirement Fund - Wealth Cr
+  '3918612/79': 159,  // Kotak Midcap Fund-Regular-Growth
+  '11190180/93': 168,  // ICICI Prudential Value Fund - DG
+  '90514582945': 180,  // Motilal Oswal Flexi Cap Fund-DG
+  '7055143/68': 186,  // Kotak Flexicap Fund - Direct Growth
+  '70527402181': 187,  // Mirae Asset Large and Midcap Fund-Direct
+  '3103846335': 188,  // Invesco India Large & Mid Cap Fund - Dir
+  '15379845/67': 195,  // ICICI Prudential Ultra Short Term Fund -
+  '15379846/64': 196,  // ICICI Prudential India Opportunities Fun
+  '90416519251': 197,  // Motilal Oswal Nasdaq 100 Fund of Fund - 
+  '405237082372': 202,  // Nippon India Multi Asset Allocation Fund
+  '70531383386': 203,  // Mirae Asset Diversified Equity Allocator
+  '300743': 208,  // Kotak Optimus Moderate Scheme Class A
+  '90525989081': 209,  // Motilal Oswal Asset Allocation Passive F
+  '31011050042': 216,  // Invesco India Contra Fund-Direct-Growth
+  '70547125861': 219,  // Mirae Asset S&P 500 Top 50 ETF Fund of F
+  '9412970/21': 220,  // Kotak Multicap Fund-Direct-Growth
+  '5833822/50': 228,  // HSBC Balanced Advantage Fund - Direct Gr
+  '402253866007': 229,  // Nippon India Balanced Advantage Fund-Dir
+  '402253865964': 230,  // Nippon India Value Fund-Direct-Growth
+  '90530934231': 232,  // Motilal Oswal Large and Midcap Fund -Dir
+  '20335137/23': 233,  // ICICI Prudential Balanced Advantage Fund
+  '18757348/81': 234,  // HDFC Multi Cap Fund DG
+  '28436114': 235,  // SBI Balanced Advantage Fund-Direct-Growt
+  '70553022186': 236,  // Mirae Asset Nifty India Manufacturing ET
+  'Demat Allotment-09.03.22': 238,  // Mirae Asset NIFTY Midcap 150 ETF - Demat
+  '70559737842': 240,  // Mirae Asset Balanced Advantage Fund-Dire
+  '70560536636': 241,  // Mirae Asset Global X Artificial Intellig
+  '70567961382': 242,  // Mirae Asset Multicap Fund-Direct-Growth
+  '28400783/26': 243,  // ICICI Prudential India Opportunities Fun
+  '28408895/37': 244,  // ICICI Prudential Business Cycle Fund-Dir
+  '90544476265': 245,  // Motilal Oswal Small Cap Fund-Direct -Gro
+  '90544476255': 246,  // Motilal Oswal Small Cap Fund-Direct -Gro
+  '90559112692': 248,  // Motilal Oswal Multicap Fund - DG
+  '405369304665': 249,  // Nippon India Nifty 500 Equal Weight Inde
+  '405369304403': 250,  // Nippon India Nifty 500 Momentum 50 Index
+  '15957595/13': 916,  // ICICI Prudential ESG Exclusionary Strate
+  '15957592/22': 917,  // ICICI Prudential ESG Exclusionary Strate
+  '70532123524- Yes Ac TTE Pledged': 921,  // Mirae Asset Short Term Fund-Direct-Growt
+  '10921302104': 923,  // Canara Robeco Large and Midcap Fund-DG
+  '90519534004': 930,  // Motilal Oswal Balanced Advantage Fund-Di
+  '90519533995': 931,  // Motilal Oswal Balanced Advantage Fund -G
+  '90519522653': 932,  // Motilal Oswal focused Fund - Direct-Grow
+  'Folio No.10595131': 933,  // Parag Parikh Flexi Cap Fund - Direct Pla
+  '7636072/80': 936,  // Kotak Bond Short Term Fund-Direct-Growth
+  '24957642': 937,  // SBI Focused Fund -Direct-Growth
+  '90597591373': 942,  // Axis Large Cap Fund - Direct Growth
+  '70532615122': 951,  // Mirae Asset Nifty 100 ESG Sector Leaders
+  '70532619886 Demat': 953,  // Mirae Asset ESG Sector Leaders ETF- Dire
+  '5032830042': 954,  // Quant Smallcap Fund-Direct-Growth
+  '90599476755': 956,  // Axis small Cap Fund -Direct -Growth
+  '10921959325': 959,  // Canara Robeco Small Cap Fund-Direct- Gro
+  '7764759/79': 962,  // Kotak ESG Exclusionary Strategy Fund Dir
+  '70533272556': 964,  // Mirae Asset Banking and Financial Servic
+  '16317238/15': 970,  // ICICI Prudential Dynamic Asset Allocatio
+  '1040584826': 979,  // Aditya Birla Sunlife Income Fund-Direct-
+  '70535314571': 983,  // Mirae Asset Diversified Equity Allocator
+  '300738': 989,  // Kotak Optimus Aggressive  Scheme-Class A
+  '25725283': 991,  // SBI Medium to Long Duration Fund-Direct-
+  '90525989001': 996,  // Motilal Oswal Asset Allocation  Passive 
+  '42211533/65': 1131,  // ICICI Prudential Rural Opportunities Fun
+  '905215133171': 1134,  // Axis Focused Fund-DG
+  '18953032': 1135,  // Parag Parikh Flexi Cap Fund-DG
+  '21281193/75': 253,  // HSBC Multicap Fund-DG
+  '21292489': 254,  // HSBC Large & Midcap Fund-DG
+  '31042996914': 255,  // Invesco India Business Cycle Fund-DG
+  '70587739373': 256,  // Mirae Asset Flexi Cap Fund-Direct-Growth
+  '10973163364': 257,  // Canara Robeco Banking and Financial Serv
+  '21307387/63': 258,  // HSBC Gold ETF Fund of Fund
+  '43845468/58': 259,  // ICICI Prudential Ultra Short Term Fund -
+  '41760123/78': 260,  // HDFC Ultra Short Term Fund - DG
+  '43814868/96': 261,  // ICICI Prudential Equity & Debt Fund - DG
+  '905225701654': 262,  // Axis Multicap Fund-DG
+  '905225702135': 263,  // Axis Large & Mid Cap Fund-DG
+  '905225701854': 264,  // Axis Focused Fund-DG
+  '905225702105': 265,  // Axis Arbitrage Fund-DG
+};
+
 const PORTFOLIO = [
   {id:1,investor:'Piyush Bokaria',originalName:'Nippon India Retirement Fund - Wealth Creation Scheme- Growth',currentName:'',folio:'401148011196',type:'MF',category:'Debt',invested:700000,currentValue:1945192.04,units:70601.525,navCost:9.9148,schemeCode:133630,purchaseDate:'2015-02-26',soaDate:'02-04-2026'},
   {id:2,investor:'Piyush Bokaria',originalName:'Kotak Midcap Fund-Regular-Growth',currentName:'',folio:'3918612/79',type:'MF',category:'Equity',invested:2000000,currentValue:8097935.47,units:61171.433,navCost:32.6950,schemeCode:104908,purchaseDate:'2017-02-16',soaDate:'02-04-2026'},
@@ -2142,7 +2221,7 @@ async function exportToExcel(){
           h.siNum || (typeof SI_MAP !== 'undefined' && SI_MAP[h.folio]) || h.id, // A Sl#
           h.investor,                     // B Name of the Investor
           h.folio || '',                  // C Account No./Folio No.
-          h.fund || '',                   // D Details of Investment
+          h.originalName || h.fund || '', // D Details of Investment
           'Yes',                          // E Bank
           purchaseDate || '',             // F Purchase Date
           h.units != null ? h.units : '', // G Units
@@ -2153,8 +2232,8 @@ async function exportToExcel(){
           currentValue,                   // L Current Value
           gain,                           // M Gain & Loss
           holdingDays || '',              // N No of Holding Days
-          flatYield / 100,                // O Flat Yield% (decimal for Excel 0% format)
-          annYield !== null ? annYield / 100 : '', // P Annualised Yield% (decimal)
+          flatYield,                      // O Flat Yield% (decimal ratio, e.g. 1.778 = 177.8%)
+          annYield !== null ? annYield : '', // P Annualised Yield% (decimal)
           cagr,                           // Q CAGR% (already decimal from Math.pow)
           'Direct',                       // R Financial Advisor
           h.category || h.type || '',     // S Category/Type
