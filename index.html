@@ -2139,7 +2139,7 @@ async function exportToExcel(){
           ? Math.pow(currentValue / invested, 365 / holdingDays) - 1 : 0;
 
         const rowData = [
-          h.siNum || SI_MAP[h.folio] || h.id, // A Sl#
+          h.siNum || (typeof SI_MAP !== 'undefined' && SI_MAP[h.folio]) || h.id, // A Sl#
           h.investor,                     // B Name of the Investor
           h.folio || '',                  // C Account No./Folio No.
           h.fund || '',                   // D Details of Investment
