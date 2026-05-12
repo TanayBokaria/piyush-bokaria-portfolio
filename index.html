@@ -1003,7 +1003,6 @@ async function fetchSingleNAV(code){
       });
     }
     return result;
-  }catch(e){}
   }catch(e){
     return null; // timeout / network error — don't retry, treat as API down
   }
