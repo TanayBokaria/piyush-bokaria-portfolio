@@ -1916,7 +1916,142 @@ function resetReportIssueFiles(){
 
 
 // ── SI# (Priya's tracking number) — Sl# Manager ─────────────────────────────
-window.SI_MAP = {};
+// SI# map seeded from Priya's master tracking sheet (Apr 2026)
+// 109 PORTFOLIO entries + 0 new_holdings entries
+// Composite keys (folio|hint) handle rare folio collisions
+window.SI_MAP = {
+  '401148011196':147,
+  '3918612/79':159,
+  '11190180/93':168,
+  '11605893 / 83':170,
+  '12089452 / 41':173,
+  '11889698 / 37':174,
+  '90514582945':180,
+  '23790849':183,
+  '23789187':184,
+  '70527402176':185,
+  '7055143/68':186,
+  '70527402181':187,
+  '3103846335':188,
+  '90516520284':191,
+  '10719534331':193,
+  '15379845/67':195,
+  '15379846/64':196,
+  '90416519251':197,
+  '7326316/88':198,
+  '402234645402':200,
+  '405237082372':202,
+  '70531383386':203,
+  '300743':208,
+  '90525989081':209,
+  '5806171/68':213,
+  '27449232':214,
+  '5036794916':215,
+  '31011050042':216,
+  '70547125872':218,
+  '70547125861':219,
+  '9412970/21':220,
+  '18401701/22':221,
+  '5834040/75':227,
+  '5833822/50':228,
+  '402253866007':229,
+  '402253865964':230,
+  '90530934231':232,
+  '20335137/23':233,
+  '18757348/81':234,
+  '28436114':235,
+  '70553022186':236,
+  '70553022176':237,
+  'Demat Allotment-09.03.22':238,
+  '70558612116':239,
+  '70559737842':240,
+  '70560536636':241,
+  '70567961382':242,
+  '28400783/26':243,
+  '28408895/37':244,
+  '90544476265':245,
+  '90544476255':246,
+  '90559112692':248,
+  '405369304665':249,
+  '405369304403':250,
+  '17992274':251,
+  '488453466616':252,
+  '21281193/75':253,
+  '21292489':254,
+  '31042996914':255,
+  '70587739373':256,
+  '10973163364':257,
+  '21307387/63':258,
+  '43845468/58':259,
+  '41760123/78':260,
+  '43814868/96':261,
+  '905225701654':262,
+  '905225702135':263,
+  '905225701854':264,
+  '905225702105':265,
+  '11444692 / 44':817,
+  '5267726 / 62':822,
+  '11605466 / 06':825,
+  '11210437 / 78':835,
+  '11210436 / 81':836,
+  '11224622 / 09':848,
+  '5629241 / 74':853,
+  '70531383583':914,
+  '15957595/13':916,
+  '15957592/22':917,
+  '70532123524- Yes Ac TTE Pledged':921,
+  '10921302104':923,
+  '90519534004':930,
+  '90519533995':931,
+  '90519522653':932,
+  '10595131':933,
+  '7636072/80':936,
+  '24957642':937,
+  '90597591373':942,
+  '70532615122':951,
+  '70532619886 Demat':953,
+  '5032830042':954,
+  '90599476755':956,
+  '10921959325':959,
+  '7764759/79':962,
+  '70533272556':964,
+  '16313110/80':967,
+  '16317238/15':970,
+  '1040584826':979,
+  '70535314571':983,
+  '300738':989,
+  '25725283':991,
+  '90525989001':996,
+  '70543625093':1007,
+  '70558013876':1038,
+  '488453429666':1122,
+  '38896894/27':1123,
+  '42211533/65':1131,
+  '905215133171':1134,
+  '18953032':1135
+};
+
+// ── getSlNum(h) — SI# lookup with composite-key support ─────────────────────
+// Composite keys (format 'folio|hint') handle the rare case where two different
+// funds share the same folio number (e.g. HSBC Multicap + HSBC Large & Midcap,
+// or two investors holding the same ISIN in demat form).
+// For normal holdings (unique folio), falls back to plain folio lookup.
+function getSlNum(h){
+  const folio = h.folio || '';
+  const fund  = (h.fund || h.originalName || '').toLowerCase();
+  const inv   = (h.investor || '').toLowerCase();
+  if(!window.SI_MAP) return '';
+  // Check composite keys first
+  for(const key of Object.keys(window.SI_MAP)){
+    if(!key.includes('|')) continue;
+    const [kFolio, kHint] = key.split('|');
+    if(kFolio === folio && (fund.includes(kHint) || inv.includes(kHint)))
+      return String(window.SI_MAP[key]);
+  }
+  // Plain folio lookup
+  return String(window.SI_MAP[folio] || '');
+}
+
 
 async function loadSIMap(){
   if(!sheetsConfig?.accessToken||!sheetsConfig?.sheetId) return;
@@ -3956,7 +4091,7 @@ async function exportToExcel(){
           ? Math.pow(currentValue / invested, 365 / holdingDays) - 1 : 0;
 
         const rowData = [
-          (window.SI_MAP && window.SI_MAP[h.folio]) || '', // A Sl# (from Priya's Sl# Manager, keyed by folio)
+          getSlNum(h), // A Sl# (from Priya's master SI# map)
           h.investor,                     // B Name of the Investor
           h.folio || '',                  // C Account No./Folio No.
           h.originalName || h.fund || '', // D Details of Investment
